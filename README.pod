@@ -7,6 +7,7 @@ Cheesecake -- a simple async authorization server.
 main.pl [options]
 
   Options:
+    --log_level|-l      log level;
     --config|-c         config file path;
     --help|-h           brief help message;
     --man|-m            show full documentation;
@@ -14,6 +15,10 @@ main.pl [options]
 =head1 OPTIONS
 
 =over 8
+
+=item B<--log_level>
+
+Daemon log level. Integer number 1..5 is expected. B<1> means error logs, B<5> -- trace.
 
 =item B<--config>
 
@@ -112,6 +117,16 @@ Memcached session expire time. All sessions expiration times will be updated on 
 =item B<E<lt>serviceE<gt>_secrets>
 
 A comma-separated list of registered clients secrets (see authorization packet specification below).
+
+=back
+
+Example configuration for a service named E<lt>some_serviceE<gt>.
+
+=over 8
+
+some_service_enabled = 1
+some_service_memc_prefix = some_service_prefix
+...
 
 =back
 

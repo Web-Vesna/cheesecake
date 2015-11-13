@@ -7,11 +7,16 @@ Cheesecake -- a simple async authorization server.
 main.pl \[options\]
 
     Options:
+      --log_level|-l      log level;
       --config|-c         config file path;
       --help|-h           brief help message;
       --man|-m            show full documentation;
 
 # OPTIONS
+
+- **--log\_level**
+
+    Daemon log level. Integer number 1..5 is expected. **1** means error logs, **5** -- trace.
 
 - **--config**
 
@@ -93,6 +98,12 @@ Following service-specific options are supported. All options are required unles
 - **&lt;service>\_secrets**
 
     A comma-separated list of registered clients secrets (see authorization packet specification below).
+
+Example configuration for a service named &lt;some\_service>.
+
+> some\_service\_enabled = 1
+> some\_service\_memc\_prefix = some\_service\_prefix
+> ...
 
 ## Protocol specification
 
