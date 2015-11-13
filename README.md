@@ -1,239 +1,191 @@
-=head1 NAME
+# NAME
 
 Cheesecake -- a simple async authorization server.
 
-=head1 SYNOPSIS
+# SYNOPSIS
 
-main.pl [options]
+main.pl \[options\]
 
-  Options:
-    --config|-c         config file path;
-    --help|-h           brief help message;
-    --man|-m            show full documentation;
+    Options:
+      --config|-c         config file path;
+      --help|-h           brief help message;
+      --man|-m            show full documentation;
 
-=head1 OPTIONS
+# OPTIONS
 
-=over 8
+- **--config**
 
-=item B<--config>
+    Config file path.
 
-Config file path.
+- **--help**
 
-=item B<--help>
+    Print a brief help message and exit.
 
-Print a brief help message and exit.
+- **--man**
 
-=item B<--man>
+    Show full documentation for a product.
 
-Show full documentation for a product.
-
-=back
-
-=head1 DESCRIPTION
+# DESCRIPTION
 
 Daemon implements session mechanism for a couple projects.
 
-=head2 Config file specification
+## Config file specification
 
 All options in the configuration file should be presented in the following format:
 
-=over 8
-
-E<lt>option_nameE<gt> = E<lt>option_valueE<gt>
-
-=back
+> &lt;option\_name> = &lt;option\_value>
 
 The '#' symbol starts a comment. All symbols after '#' will be ignored. No new lines are expected in one argument specification.
 
-=head3 Common options
+### Common options
 
 Following configuration options are expected:
 
-=over 8
+- **listen**
 
-=item B<listen>
+    Listen specified host and port. Following format is expected:
 
-Listen specified host and port. Following format is expected:
+    &lt;host>:&lt;port>
 
-E<lt>hostE<gt>:E<lt>portE<gt>
+    This parametr is required.
 
-This parametr is required.
+- **user**
 
-=item B<user>
+    Daemon will be started with given user privileges. Default is _nobody_.
 
-Daemon will be started with given user privileges. Default is I<nobody>.
+- **group**
 
-=item B<group>
+    Daemon will be started with given group privileges. Default is _nogroup_.
 
-Daemon will be started with given group privileges. Default is I<nogroup>.
-
-=back
-
-=head3 Service-specific options
+### Service-specific options
 
 This part of config file specifies a list of services supported by cheesecake. All options starts from the service name (see example below).
 
 Following service-specific options are supported. All options are required unless otherwise specified.
 
-=over 8
+- **&lt;service>\_enabled**
 
-=item B<E<lt>serviceE<gt>_enabled>
+    Service enable status. Integer number, **1** or **0**. Every service is disabled by default.
 
-Service enable status. Integer number, B<1> or B<0>. Every service is disabled by default.
+- **&lt;service>\_db\_host**
+- **&lt;service>\_db\_port**
+- **&lt;service>\_db\_user**
+- **&lt;service>\_db\_password**
+- **&lt;service>\_db\_name**
 
-=item B<E<lt>serviceE<gt>_db_host>
+    Service database parametrs. String.
 
-=item B<E<lt>serviceE<gt>_db_port>
+    The database should contains a table **users** with specified by **login** request format (see below). The **id** column as a primary key is required.
 
-=item B<E<lt>serviceE<gt>_db_user>
+- **&lt;service>\_memc\_host**
+=item **&lt;service>\_memc\_port**
 
-=item B<E<lt>serviceE<gt>_db_password>
+    Memcached server options. This server will be used to store an authorized sessions.
 
-=item B<E<lt>serviceE<gt>_db_name>
+- **&lt;service>\_memc\_prefix**
 
-Service database parametrs. String.
+    This string will be used as a prefix in memcached.
 
-The database should contains a table B<users> with specified by B<login> request format (see below). The B<id> column as a primary key is required.
+- **&lt;service>\_session\_expire\_time**
 
-=item B<E<lt>serviceE<gt>_memc_host>
-=item B<E<lt>serviceE<gt>_memc_port>
+    Memcached session expire time. All sessions expiration times will be updated on every request call. This time specifies maximum inactivity time (in seconds).
 
-Memcached server options. This server will be used to store an authorized sessions.
+- **&lt;service>\_secrets**
 
-=item B<E<lt>serviceE<gt>_memc_prefix>
+    A comma-separated list of registered clients secrets (see authorization packet specification below).
 
-This string will be used as a prefix in memcached.
+## Protocol specification
 
-=item B<E<lt>serviceE<gt>_session_expire_time>
+Daemon expects a [CBOR](http://cbor.io/) packets. Daemon will return a CBOR packet as a reply.
 
-Memcached session expire time. All sessions expiration times will be updated on every request call. This time specifies maximum inactivity time (in seconds).
+All packets should be represented as an array with the format, specified below. But every have a _packet\_id_ as first element.
 
-=item B<E<lt>serviceE<gt>_secrets>
-
-A comma-separated list of registered clients secrets (see authorization packet specification below).
-
-=back
-
-=head2 Protocol specification
-
-Daemon expects a L<CBOR|http://cbor.io/> packets. Daemon will return a CBOR packet as a reply.
-
-All packets should be represented as an array with the format, specified below. But every have a I<packet_id> as first element.
-
-The packet_id  is a random integer number required to enumerate packets over async mechanism.
+The packet\_id  is a random integer number required to enumerate packets over async mechanism.
 
 This number will be returned to client in response also as a first argument.
 
-=head3 Authorization packet specification
+### Authorization packet specification
 
 Daemon expects as a first packet with the following structure:
 
-=over 16
+> \[ packet\_id, client\_name, client\_seret \]
 
-[ packet_id, client_name, client_seret ]
+- **client\_name**
 
-=back
+    The client name is a string, specified as a **service\_name** in configuration file. This service should be enabled in configuration.
 
-=over 8
+    If this service is not presented in config, this client will be banned.
 
-=item B<client_name>
+- **client\_secret**
 
-The client name is a string, specified as a B<service_name> in configuration file. This service should be enabled in configuration.
+    This string value should be presented in the **&lt;service>\_secrets** configuration option.
 
-If this service is not presented in config, this client will be banned.
-
-=item B<client_secret>
-
-This string value should be presented in the B<E<lt>serviceE<gt>_secrets> configuration option.
-
-If there is no such client secret presented in config, this client will be banned.
-
-=back
+    If there is no such client secret presented in config, this client will be banned.
 
 "The client is banned" means, that an error packet will be sent in response and the connection will be force closed.
 
 The response packet have following format:
 
-=over 16
+> \[ packet\_id, status, error\_message \]
 
-[ packet_id, status, error_message ]
+Status field will be set to **0** on error and to **1** otherwise. The error message is not presented in success response.
 
-=back
-
-Status field will be set to B<0> on error and to B<1> otherwise. The error message is not presented in success response.
-
-=head3 Common packet specification
+### Common packet specification
 
 Daemon expects input with following structure (json interpretarion):
 
-=over 16
+> \[ packet\_id, function\_name, arguments \]
 
-[ packet_id, function_name, arguments ]
+- **function\_name**
 
-=back
+    This is a unique function name (string) to be called. All functions expects individual number of arguments (see below).
 
-=over 8
+- **arguments**
 
-=item B<function_name>
-
-This is a unique function name (string) to be called. All functions expects individual number of arguments (see below).
-
-=item B<arguments>
-
-This is a number of function-specific argumets.
-
-=back
+    This is a number of function-specific argumets.
 
 Daemon will return foolowin packet in response (also CBOR encoded):
 
-=over 16
+> \[ packet\_id, status, arguments \]
 
-[ packet_id, status, arguments ]
+The _packet\_id_ argument will be simply taken from a request.
 
-=back
-
-The I<packet_id> argument will be simply taken from a request.
-
-The I<status> argument can be B<1> on request success and B<0> on request fail.
+The _status_ argument can be **1** on request success and **0** on request fail.
 
 If the request was failed, the third argument will be a message (string) which explains an error.
 
 Following functions are expected:
 
-=over 8
+- **check**
 
-=item B<check>
+    Check the session existance. Session id should be given as argument (string).
 
-Check the session existance. Session id should be given as argument (string).
+    Daemon will just return a status **1** if the session exists and **0** otherwise. See return packet format below for more information.
 
-Daemon will just return a status B<1> if the session exists and B<0> otherwise. See return packet format below for more information.
+- **about**
 
-=item B<about>
+    Check the session existance and return a session information. Session id should be given as argument (string).
 
-Check the session existance and return a session information. Session id should be given as argument (string).
+    Daemon will return a hash (as a third argument) with a format, specified by a configuration file (see below).
 
-Daemon will return a hash (as a third argument) with a format, specified by a configuration file (see below).
+- **login**
 
-=item B<login>
+    The request will try to authorize a user with given parametrs (a hash element in third argument).
 
-The request will try to authorize a user with given parametrs (a hash element in third argument).
+    If success, the method will return a session id.
 
-If success, the method will return a session id.
+    All options, specified as a required login options (see cofiguration file specification below) should present in the parametrs.
 
-All options, specified as a required login options (see cofiguration file specification below) should present in the parametrs.
+- **logout**
 
-=item B<logout>
+    The request will try to close a session with given in third argument id.
 
-The request will try to close a session with given in third argument id.
+    The 4th integer argument is optional.
 
-The 4th integer argument is optional.
+    If 1 is given, the system will try to close all session of the specified user. Otherwise the system will close only given session.
 
-If 1 is given, the system will try to close all session of the specified user. Otherwise the system will close only given session.
+- **register**
 
-=item B<register>
+    The request will try to register a user with specified parametrs (third hash argument).
 
-The request will try to register a user with specified parametrs (third hash argument).
-
-All options, specified as required for register request (see cofiguration file specification below) should present in parametrs.
-
-=back
+    All options, specified as required for register request (see cofiguration file specification below) should present in parametrs.
