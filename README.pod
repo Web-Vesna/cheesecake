@@ -96,6 +96,7 @@ Service database parametrs. String.
 The database should contains a table B<users> with specified by B<login> request format (see below). The B<id> column as a primary key is required.
 
 =item B<E<lt>serviceE<gt>_memc_host>
+
 =item B<E<lt>serviceE<gt>_memc_port>
 
 Memcached server options. This server will be used to store an authorized sessions.

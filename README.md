@@ -78,7 +78,7 @@ Following service-specific options are supported. All options are required unles
     The database should contains a table **users** with specified by **login** request format (see below). The **id** column as a primary key is required.
 
 - **&lt;service>\_memc\_host**
-=item **&lt;service>\_memc\_port**
+- **&lt;service>\_memc\_port**
 
     Memcached server options. This server will be used to store an authorized sessions.
 
