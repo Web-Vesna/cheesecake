@@ -9,6 +9,7 @@ main.pl [options]
   Options:
     --config|-c         config file path;
     --log_level|-l      log level;
+    --no_auth|-n        don't expect auth packets;
     --json|-j           use JSON instead of CBOR;
     --help|-h           brief help message;
     --man|-m            show full documentation;
@@ -24,6 +25,10 @@ Config file path.
 =item B<--log_level>
 
 Daemon log level. Integer number 1..5 is expected. B<1> means error logs, B<5> -- trace.
+
+=item B<--no_auth>
+
+Daemon will not expects auth packets. Foe debug purposes needed.
 
 =item B<--json>
 

@@ -18,11 +18,17 @@ use base qw( Exporter );
 
 our @EXPORT = qw(
 	main_loop
+	skip_auth
 );
 
 {
 	my $logger = Logger->new("MainLoop");
-	my @clients;
+	my @clients; # XXX: overflow is expected: FIXME
+
+	my $use_auth = 1;
+	sub skip_auth {
+		$use_auth = not shift;
+	}
 
 	sub main_loop {
 		die "Can't listen port " . config->{listen}{port} . " unless you are root\n"
@@ -44,23 +50,9 @@ our @EXPORT = qw(
 		AnyEvent->condvar->recv;
 	}
 
-	sub on_packet_read {
-		my ($proto, $host, $port, $type) = @_;
-		my $packet_type = ucfirst($type // "common");
-
-		$logger->trace("Preparing read_packet event for $packet_type packet");
-		return $proto->on_read_event($type => sub {
-			my ($hndl, $packet) = @_;
-			$logger->debug("$packet_type packet came from $host, $port");
-			$hndl->push_write($packet->response);
-			$hndl->push_read(on_packet_read($proto, $host, $port));
-		});
-	}
-
-	sub mk_handle {
-		my ($cli, $host, $port) = @_;
-
-		my $proto = CakeProto->new(
+	sub create_proto {
+		my ($host, $port) = @_;
+		return CakeProto->new(
 			cb_close => sub {
 				my ($hndl, $msg) = @_;
 				$hndl->push_write($msg);
@@ -68,6 +60,23 @@ our @EXPORT = qw(
 			},
 			credentials => "$host:$port",
 		);
+	}
+
+	sub on_packet_read {
+		my ($host, $port, $type) = @_;
+		my $packet_type = ucfirst($type // "common");
+
+		$logger->trace("Preparing read_packet event for $packet_type packet");
+		return create_proto($host, $port)->on_read_event($type => sub {
+			my ($hndl, $packet) = @_;
+			$logger->debug("$packet_type packet came from $host, $port");
+			$hndl->push_write($packet->response);
+			$hndl->push_read(on_packet_read($host, $port));
+		});
+	}
+
+	sub mk_handle {
+		my ($cli, $host, $port) = @_;
 
 		my $hndl = AnyEvent::Handle->new(
 			fh => $cli,
@@ -77,7 +86,7 @@ our @EXPORT = qw(
 				my ($hndl, $fatal, $msg) = @_;
 
 				$logger->err("Error happens in $host:$port: $msg. Close connection.");
-				$proto->bad_packet($hndl); # will destroy connection
+				create_proto($host, $port)->bad_packet($hndl); # will destroy connection
 			},
 
 			on_eof => sub {
@@ -87,7 +96,7 @@ our @EXPORT = qw(
 			},
 		);
 
-		$hndl->push_read(on_packet_read($proto, $host, $port, 'auth'));
+		$hndl->push_read(on_packet_read($host, $port, ($use_auth ? 'auth' : undef)));
 
 		return $hndl;
 	}

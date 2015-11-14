@@ -18,6 +18,7 @@ GetOptions(
 	'config=s'	=> \$console_args{config},
 	'log_level=i'	=> \$console_args{log_lvl},
 	'json'		=> \$console_args{use_json},
+	'no_auth'	=> \$console_args{no_auth},
 	'help'		=> \$console_args{help},
 	'man'		=> \$console_args{man},
 );
@@ -50,13 +51,24 @@ if ($console_args{log_lvl}) {
 	set_log_lvl($console_args{log_lvl});
 }
 
+my $logger = Logger->new("main");
+
 use CakeConfig qw( read_config );
+$logger->info("Using config file $console_args{config}");
 read_config($console_args{config});
 
 use CakeProto qw( use_json );
+$logger->info("Using ${ $console_args{use_json} ? \'json' : \'cbor' } as a formatter");
 use_json($console_args{use_json});
 
-use MainLoop qw( main_loop );
+use MainLoop qw( main_loop skip_auth );
+
+if ($console_args{no_auth}) {
+	skip_auth(1);
+	$logger->info("Daemon started without authentification support (auth packet shouldn't be sent)");
+}
+
+$logger->info("Starting loop");
 main_loop;
 
 1;

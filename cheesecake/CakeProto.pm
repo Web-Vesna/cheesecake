@@ -34,7 +34,15 @@ our @EXPORT = qw(
 			@_,
 		);
 
+		$args{id} = int(rand 100000);
+		$logger->trace("Creatigng proto $args{id}");
+
 		return bless \%args, $class;
+	}
+
+	sub DESTROY {
+		my $self = shift;
+		$logger->trace("Destroying proto $self->{id}");
 	}
 
 	sub _encode_mode {
@@ -75,15 +83,19 @@ our @EXPORT = qw(
 			die "Unexpected packet type from '$self->{credentials}': '$type'\n";
 		}
 
+		$logger->trace("Packet type is $pack_type");
+
 		return _encode_mode, sub {
 			my ($hndl, $data) = @_;
+
+			$logger->trace("Packet came into on_read");
 
 			my $packet = $pack_type->new(
 				$data,
 				encode => \&_encode,
 			);
 			if ($packet->valid) {
-				return $sub->($hndl, $packet);
+				return $packet->process($hndl, $sub);
 			}
 
 			$logger->err("Invalid packet came from '$self->{credentials}': " . $packet->errstr() . ". Close connection");
@@ -125,6 +137,11 @@ sub valid {
 	return not defined shift->{err};
 }
 
+sub process {
+	my ($self, $hndl, $cb) = @_;
+	return $cb->($hndl, $self); # no processing by default
+}
+
 sub parse_packet {
 	my ($self, $packet) = @_;
 
@@ -149,14 +166,12 @@ sub errstr {
 }
 
 sub response {
-	my ($self, %args) = @_;
+	my ($self) = @_;
 	my @resp = ( $self->{packet_id} );
 	if ($self->{err}) {
 		push @resp, 0, $self->{err};
-	} elsif ($args{fail}) {
-		push @resp, 0, $args{fail};
 	} else {
- 		push @resp, 1, $self->prepare_response(\%args);
+ 		push @resp, 1, $self->prepare_response;
 	}
 	$self->trace(response => \@resp);
 
@@ -185,15 +200,45 @@ use warnings;
 
 use base qw( CakeProto::Packet );
 
+use CakeProcessor;
+
 sub _parse_packet_impl {
-	my $self = shift;
-	return {};
+	my ($self, $packet) = @_;
+
+	my $func_name = shift @$packet;
+	unless ($func_name) {
+		$self->{err} = "function name is not specified";
+		return;
+	}
+
+	$self->{processor} = CakeProcessor->new($func_name, $packet);
+	unless ($self->{processor}->valid) {
+		$self->{err} = $self->{processor}->errstr;
+	}
 }
 
 sub prepare_response {
 	my ($self, $args) = @_;
-	return 1;
+	return $self->{processor}->response;
 }
+
+sub process {
+	my ($self, $hndl, $cb) = @_;
+	$self->{processor}->process(sub {
+		$cb->($hndl, $self);
+	});
+}
+
+sub valid {
+	my $self = shift;
+	return !defined($self->{err}) && $self->{processor} && $self->{processor}->valid;
+}
+
+sub errstr {
+	my $self = shift;
+	return $self->{err} // ($self->{processor} && !$self->{processor}->valid) // "success";
+}
+
 
 1;
 

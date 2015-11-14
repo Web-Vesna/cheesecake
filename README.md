@@ -9,6 +9,7 @@ main.pl \[options\]
     Options:
       --config|-c         config file path;
       --log_level|-l      log level;
+      --no_auth|-n        don't expect auth packets;
       --json|-j           use JSON instead of CBOR;
       --help|-h           brief help message;
       --man|-m            show full documentation;
@@ -22,6 +23,10 @@ main.pl \[options\]
 - **--log\_level**
 
     Daemon log level. Integer number 1..5 is expected. **1** means error logs, **5** -- trace.
+
+- **--no\_auth**
+
+    Daemon will not expects auth packets. Foe debug purposes needed.
 
 - **--json**
 
