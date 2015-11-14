@@ -10,6 +10,7 @@ use Logger;
 our @EXPORT_OK = qw(
 	read_config
 	config
+	service
 );
 
 our @EXPORT = @EXPORT_OK;
@@ -223,6 +224,10 @@ our @EXPORT = @EXPORT_OK;
 			unless %Config;
 
 		\%Config;
+	}
+
+	sub service {
+		return config->{services}{$_[0]};
 	}
 }
 

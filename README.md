@@ -7,20 +7,25 @@ Cheesecake -- a simple async authorization server.
 main.pl \[options\]
 
     Options:
-      --log_level|-l      log level;
       --config|-c         config file path;
+      --log_level|-l      log level;
+      --telnet|-t         use telnet-specific protocol;
       --help|-h           brief help message;
       --man|-m            show full documentation;
 
 # OPTIONS
 
+- **--config**
+
+    Config file path.
+
 - **--log\_level**
 
     Daemon log level. Integer number 1..5 is expected. **1** means error logs, **5** -- trace.
 
-- **--config**
+- **--telnet**
 
-    Config file path.
+    Use telnet-specific protocol. For example, use JSON format instead of CBOR.
 
 - **--help**
 

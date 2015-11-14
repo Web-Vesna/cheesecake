@@ -17,12 +17,23 @@ our @EXPORT = qw(
 	err
 
 	set_log_lvl
+	log_lvl
 );
 
 {
 	our $LOG_LVL = 2;
 	sub set_log_lvl {
 		$LOG_LVL = shift // 2;
+	}
+
+	sub log_lvl {
+		return [qw(
+			err
+			warn
+			info
+			debug
+			trace
+		)]->[$LOG_LVL - 1];
 	}
 
 	sub new {

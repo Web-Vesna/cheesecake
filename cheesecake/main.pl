@@ -15,8 +15,9 @@ my %console_args = (
 );
 
 GetOptions(
-	'log_level=i'	=> \$console_args{log_lvl},
 	'config=s'	=> \$console_args{config},
+	'log_level=i'	=> \$console_args{log_lvl},
+	'telnet'	=> \$console_args{use_telnet},
 	'help'		=> \$console_args{help},
 	'man'		=> \$console_args{man},
 );
@@ -51,6 +52,9 @@ if ($console_args{log_lvl}) {
 
 use CakeConfig qw( read_config );
 read_config($console_args{config});
+
+use CakeProto qw( telnet_mode );
+telnet_mode($console_args{use_telnet});
 
 use MainLoop qw( main_loop );
 main_loop;
