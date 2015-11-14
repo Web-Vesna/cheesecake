@@ -25,9 +25,9 @@ our @EXPORT = qw(
 	my $logger = Logger->new("MainLoop");
 	my @clients; # XXX: overflow is expected: FIXME
 
-	my $use_auth = 1;
+	my $auth_client = undef;
 	sub skip_auth {
-		$use_auth = not shift;
+		$auth_client = shift;
 	}
 
 	sub main_loop {
@@ -51,7 +51,7 @@ our @EXPORT = qw(
 	}
 
 	sub create_proto {
-		my ($host, $port) = @_;
+		my ($host, $port, $auth_client) = @_;
 		return CakeProto->new(
 			cb_close => sub {
 				my ($hndl, $msg) = @_;
@@ -59,19 +59,32 @@ our @EXPORT = qw(
 				$hndl->destroy;
 			},
 			credentials => "$host:$port",
+			auth_client => $auth_client,
 		);
 	}
 
 	sub on_packet_read {
-		my ($host, $port, $type) = @_;
-		my $packet_type = ucfirst($type // "common");
+		my ($host, $port, $client) = @_;
+
+		my $is_auth = !$auth_client && !defined $client;
+		my $packet_type = $is_auth ? "Auth" : "Common";
+
+		if (!$client && $auth_client) {
+			$logger->info("Setting auth client as $auth_client (command line option)");
+		}
 
 		$logger->trace("Preparing read_packet event for $packet_type packet");
-		return create_proto($host, $port)->on_read_event($type => sub {
+		return create_proto($host, $port, $client // $auth_client)->on_read_event(($is_auth ? 'auth' : undef) => sub {
 			my ($hndl, $packet) = @_;
 			$logger->debug("$packet_type packet came from $host, $port");
+
+			my $auth_cli = $is_auth ? $packet->{auth_client} : ($client // $auth_client);
+			if ($is_auth) {
+				$logger->info("Setting auth client as $auth_cli");
+			}
+
 			$hndl->push_write($packet->response);
-			$hndl->push_read(on_packet_read($host, $port));
+			$hndl->push_read(on_packet_read($host, $port, $auth_cli));
 		});
 	}
 
@@ -96,7 +109,7 @@ our @EXPORT = qw(
 			},
 		);
 
-		$hndl->push_read(on_packet_read($host, $port, ($use_auth ? 'auth' : undef)));
+		$hndl->push_read(on_packet_read($host, $port));
 
 		return $hndl;
 	}

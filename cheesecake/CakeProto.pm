@@ -5,7 +5,7 @@ use warnings;
 
 use base qw( Exporter );
 
-use Logger;
+require Logger;
 use JSON::XS;
 use CBOR::XS;
 
@@ -31,6 +31,7 @@ our @EXPORT = qw(
 		my %args = (
 			cb_close => undef,
 			credentials => "unknown",
+			auth_client => undef,
 			@_,
 		);
 
@@ -93,6 +94,7 @@ our @EXPORT = qw(
 			my $packet = $pack_type->new(
 				$data,
 				encode => \&_encode,
+				auth_client => $self->{auth_client},
 			);
 			if ($packet->valid) {
 				return $packet->process($hndl, $sub);
@@ -201,6 +203,7 @@ use warnings;
 use base qw( CakeProto::Packet );
 
 use CakeProcessor;
+use MemcClient;
 
 sub _parse_packet_impl {
 	my ($self, $packet) = @_;
@@ -211,7 +214,10 @@ sub _parse_packet_impl {
 		return;
 	}
 
-	$self->{processor} = CakeProcessor->new($func_name, $packet);
+	die "Auth client is not set!\n"
+		unless $self->{auth_client};
+
+	$self->{processor} = CakeProcessor->new($func_name, $packet, MemcClient->new($self->{auth_client}));
 	unless ($self->{processor}->valid) {
 		$self->{err} = $self->{processor}->errstr;
 	}
@@ -274,6 +280,8 @@ sub _parse_packet_impl {
 		$self->{err} = "no such service";
 		return;
 	}
+
+	$self->{auth_client} = $client_name;
 
 	return {};
 }

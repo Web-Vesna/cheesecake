@@ -11,17 +11,19 @@ require Logger;
 my $logger = Logger->new("BaseMethod");
 
 sub new {
-	my ($class, $processor_args) = @_;
+	my ($class, $processor_args, $memc) = @_;
 
 	$logger->trace("$class method invoked with args " . Dumper $processor_args);
 
-	my $self = bless {}, $class;
+	my $self = bless {
+		memc => $memc,
+	}, $class;
 
-	if ($self->check_args($processor_args)) { # method should be implemented in derived
-		$self->{args} = $processor_args;
-	} elsif ($self->valid) {
-		# if we forget to set 'err' in derived
-		$self->{err} = "args processing failed";
+	unless ($self->check_args($processor_args)) { # method should be implemented in derived
+		if ($self->valid) {
+			# if we forget to set 'err' in derived
+			$self->{err} = "args processing failed";
+		}
 	}
 
 	return $self;
@@ -56,6 +58,10 @@ sub response {
 	my $self = shift;
 
 	return @{$self->{response}};
+}
+
+sub memc {
+	return shift->{memc};
 }
 
 1;

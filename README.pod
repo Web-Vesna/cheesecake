@@ -210,7 +210,7 @@ This is a number of function-specific argumets.
 
 =back
 
-Daemon will return foolowin packet in response (also CBOR encoded):
+Daemon will return following packet in response (also CBOR encoded):
 
 =over 16
 

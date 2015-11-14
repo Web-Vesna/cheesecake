@@ -18,10 +18,10 @@ GetOptions(
 	'config=s'	=> \$console_args{config},
 	'log_level=i'	=> \$console_args{log_lvl},
 	'json'		=> \$console_args{use_json},
-	'no_auth'	=> \$console_args{no_auth},
+	'no_auth=s'	=> \$console_args{no_auth},
 	'help'		=> \$console_args{help},
 	'man'		=> \$console_args{man},
-);
+) or $console_args{help} = 1;
 
 my $readme_file = $FindBin::Bin . '/../README.pod';
 unless (-f $readme_file) {
@@ -64,8 +64,9 @@ use_json($console_args{use_json});
 use MainLoop qw( main_loop skip_auth );
 
 if ($console_args{no_auth}) {
-	skip_auth(1);
+	skip_auth($console_args{no_auth});
 	$logger->info("Daemon started without authentification support (auth packet shouldn't be sent)");
+	$logger->info("Client set to $console_args{no_auth}");
 }
 
 $logger->info("Starting loop");

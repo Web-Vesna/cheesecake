@@ -5,12 +5,12 @@ use warnings;
 
 use base qw( Exporter );
 
-use Logger;
+require Logger;
 
 my $logger = Logger->new("CakeProcessor");
 
 sub new {
-	my ($class, $func_name, $args) = @_;
+	my ($class, $func_name, $args, $memc) = @_;
 
 	my $self = bless {}, $class;
 
@@ -18,7 +18,7 @@ sub new {
 	unless ($processor) {
 		$self->{err} = "unknown function was called: $func_name";
 	} else {
-		$self->{processor} = $processor->new($args);
+		$self->{processor} = $processor->new($args, $memc);
 		$self->{err} = $self->{processor}->errstr
 			unless $self->{processor}->valid;
 	}

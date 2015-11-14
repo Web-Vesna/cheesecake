@@ -1,0 +1,3 @@
+[submodule "third_party/AnyEvent-Memcached"]
+	path = third_party/AnyEvent-Memcached
+	url = https://github.com/lestrrat/AnyEvent-Memcached.git
