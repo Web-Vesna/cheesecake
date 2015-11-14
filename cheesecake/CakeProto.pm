@@ -10,14 +10,14 @@ use JSON::XS;
 use CBOR::XS;
 
 our @EXPORT = qw(
-	telnet_mode
+	use_json
 	encode_mode
 );
 
 {
-	my $telnet_mode = 0;
-	sub telnet_mode {
-		$telnet_mode = shift;
+	my $use_json = 0;
+	sub use_json {
+		$use_json = shift;
 	}
 
 	my $logger = Logger->new("Proto");
@@ -38,7 +38,7 @@ our @EXPORT = qw(
 	}
 
 	sub _encode_mode {
-		return $telnet_mode ? "json" : "cbor";
+		return $use_json ? "json" : "cbor";
 	}
 
 	sub _encode_module {
@@ -89,6 +89,15 @@ our @EXPORT = qw(
 			$logger->err("Invalid packet came from '$self->{credentials}': " . $packet->errstr() . ". Close connection");
 			$self->{cb_close}($hndl, $packet->response);
 		};
+	}
+
+	sub bad_packet {
+		my ($self, $hndl) = @_;
+
+		$logger->err("Invalid packet came from '$self->{credentials}'");
+
+		my $packet = CakeProto::BadPacket->new(undef, encode => \&_encode);
+		$self->{cb_close}($hndl, $packet->response);
 	}
 }
 
@@ -225,7 +234,21 @@ sub _parse_packet_impl {
 }
 
 sub prepare_response {
-	return; # nothing in response
+	return (); # nothing in response
+}
+
+1;
+
+package CakeProto::BadPacket;
+
+use strict;
+use warnings;
+
+use base qw( CakeProto::Packet );
+
+sub parse_packet {
+	shift->{err} = "bad packet";
+	return undef;
 }
 
 1;

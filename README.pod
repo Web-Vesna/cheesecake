@@ -9,7 +9,7 @@ main.pl [options]
   Options:
     --config|-c         config file path;
     --log_level|-l      log level;
-    --telnet|-t         use telnet-specific protocol;
+    --json|-j           use JSON instead of CBOR;
     --help|-h           brief help message;
     --man|-m            show full documentation;
 
@@ -25,9 +25,9 @@ Config file path.
 
 Daemon log level. Integer number 1..5 is expected. B<1> means error logs, B<5> -- trace.
 
-=item B<--telnet>
+=item B<--json>
 
-Use telnet-specific protocol. For example, use JSON format instead of CBOR.
+Use JSON as an encoder instead of CBOR. For debug purposes.
 
 =item B<--help>
 
