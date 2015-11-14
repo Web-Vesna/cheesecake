@@ -10,14 +10,18 @@ use CakeConfig qw( service );
 # TODO: PROCESS MEMCACHED ERRORS !!!
 
 require Logger;
-my $logger = Logger->new("MemcachedClient");
 
 my %connections;
 
 sub new {
 	my ($class, $service_name) = @_;
 
-	my $self = bless {}, $class;
+	my $self = bless {
+		keys_in_process => {},
+		keys_queue => [],
+
+		delete_in_process => {},
+	}, $class;
 
 	unless ($connections{$service_name}) {
 		$self->establish_connection($service_name);
@@ -35,32 +39,113 @@ sub establish_connection {
 
 	my $memc = AnyEvent::Memcached->new(
 		servers => [ "$host:$port" ],
-		namespace => "$prefix:",
+		namespace => "$prefix:_sid:",
 	);
 
+	my $memc2 = AnyEvent::Memcached->new(
+		servers => [ "$host:$port" ],
+		namespace => "$prefix:_uid:",
+	);
+
+	my $logger = Logger->new("MemcachedClient");
 	$connections{$service_name} = {
-		memc => $memc,
+		sid_memc => $memc,
+		uid_memc => $memc2,
 		exptime => $exptime,
+		logger => $logger,
 	};
 }
 
 sub get {
 	my ($self, $key, $cb) = @_;
-	return $self->{conn}{memc}->get($key, cb => $cb);
+	return $self->{conn}{sid_memc}->get($key, cb => $cb);
+}
+
+sub _process_queue {
+	my $self = shift;
+
+	for (@_) {
+		$self->set(@$_);
+	}
 }
 
 sub set {
-	my ($self, $key, $value, $cb) = @_;
-	return $self->{conn}{memc}->set(
-		$key => $value,
+	my ($self, $sid, $uid, $value, $cb) = @_;
+
+	if ($self->{delete_in_process}{$uid}) {
+		# ignore authentifications of users whose sessions we trying to close
+		$cb->();
+		return;
+	}
+
+	my $in_process = $self->{keys_in_process}; # to remove race-conditions
+	if ($in_process->{$uid}) {
+		shift;
+		push @{$self->{keys_queue}}, \@_;
+		return;
+	}
+
+	$in_process->{$uid} = 2;
+	my $do_process = sub {
+		# should be called just 2 times per uid
+		if (--$in_process->{$uid} == 0) {
+			my $queue = $self->{keys_queue};
+			$self->{keys_queue} = [];
+			$self->_process_queue(@$queue);
+		}
+	};
+
+	$self->{conn}{sid_memc}->set(
+		$sid => $value,
 		expire => $self->{conn}{exptime},
-		cb => $cb // sub {}, # $cb->($rc, $err);
+		cb => sub {
+			$cb->(@_);
+			$do_process->();
+		},
 	);
+	$self->{conn}{uid_memc}->get($uid, cb => sub {
+		my ($val, $err) = @_;
+
+		if ($err) {
+			$self->{conn}{logger}->err("Can't get uid info: $uid: $@");
+			$val = undef;
+		}
+
+		$val //= [];
+		push @$val, $sid;
+
+		$self->{conn}{uid_memc}->set(
+			$uid => $val,
+			cb => $do_process,
+		);
+	});
 }
 
-sub delete {
+sub delete_by_sid {
 	my ($self, $key, $cb) = @_;
-	return $self->{conn}{memc}->delete($key, cb => $cb // sub {});
+	return $self->{conn}{sid_memc}->delete($key, cb => $cb // sub {});
+}
+
+sub delete_by_uid {
+	my ($self, $uid) = @_;
+
+	# ignore authentifications of users whose sessions we trying to close
+	$self->{delete_in_process}{$uid} = 1;
+	$self->{conn}{uid_memc}->get($uid, cb => sub {
+		my ($val, $err) = @_;
+
+		if ($err) {
+			$self->{conn}{logger}->err("Can't get uid info: $uid: $@");
+			return;
+		}
+
+		for (@$val) {
+			$self->{conn}{sid_memc}->delete($_, noreply => 1);
+		}
+
+		$self->{conn}{uid_memc}->delete($uid, noreply => 1);
+		$self->{delete_in_process}{$uid} = 0;
+	});
 }
 
 1;
