@@ -164,43 +164,71 @@ If the column is not required, this column will be inserted as NULL if not prese
 
 =back
 
-=begin code
-
 {
-	table_name : "users",
-	columns: [
-		{
-			name : "id",
-			col_type : "userid",
-			type : "int",
-		}, {
-			name : "login",
-			required : true,
-			col_type : "login",
-			type : "str",
-		}, {
-			name : "password",
-			required : true,
-			col_type : "pass",
-			type : "str",
-		}, {
-			name : "name",
-			required : true,
-			type : "str",
-		}, {
-			name : "lastname"
-			required : false,
-			type : "str",
-		}, {
-			name : "role",
-			required : true,
-			type : "int",
-		},
-		...
-	],
-}
 
-=end code
+	table_name : "users",
+
+	columns: [
+
+		{
+
+			name : "id",
+
+			col_type : "userid",
+
+			type : "int",
+
+		}, {
+
+			name : "login",
+
+			required : true,
+
+			col_type : "login",
+
+			type : "str",
+
+		}, {
+
+			name : "password",
+
+			required : true,
+
+			col_type : "pass",
+
+			type : "str",
+
+		}, {
+
+			name : "name",
+
+			required : true,
+
+			type : "str",
+
+		}, {
+
+			name : "lastname"
+
+			required : false,
+
+			type : "str",
+
+		}, {
+
+			name : "role",
+
+			required : true,
+
+			type : "int",
+
+		},
+
+		...
+
+	],
+
+}
 
 =back
 
@@ -209,7 +237,9 @@ Example configuration for a service named E<lt>some_serviceE<gt>.
 =over 8
 
 some_service_enabled = 1
+
 some_service_memc_prefix = some_service_prefix
+
 ...
 
 =back

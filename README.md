@@ -141,10 +141,78 @@ Following service-specific options are supported. All options are required unles
 
         If the column is not required, this column will be inserted as NULL if not presented in request.
 
+    {
+
+            table_name : "users",
+
+            columns: [
+
+                    {
+
+                            name : "id",
+
+                            col_type : "userid",
+
+                            type : "int",
+
+                    }, {
+
+                            name : "login",
+
+                            required : true,
+
+                            col_type : "login",
+
+                            type : "str",
+
+                    }, {
+
+                            name : "password",
+
+                            required : true,
+
+                            col_type : "pass",
+
+                            type : "str",
+
+                    }, {
+
+                            name : "name",
+
+                            required : true,
+
+                            type : "str",
+
+                    }, {
+
+                            name : "lastname"
+
+                            required : false,
+
+                            type : "str",
+
+                    }, {
+
+                            name : "role",
+
+                            required : true,
+
+                            type : "int",
+
+                    },
+
+                    ...
+
+            ],
+
+    }
+
 Example configuration for a service named &lt;some\_service>.
 
 > some\_service\_enabled = 1
+>
 > some\_service\_memc\_prefix = some\_service\_prefix
+>
 > ...
 
 ## Protocol specification
