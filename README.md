@@ -109,6 +109,38 @@ Following service-specific options are supported. All options are required unles
 
     A comma-separated list of registered clients secrets (see authorization packet specification below).
 
+- **&lt;service>\_db\_schema**
+
+    This option specifies a database schema to be used in requests.
+
+    The schema should be specified as a JSON object.
+
+    The object is consists of 2 items: a table name and a list of columns.
+
+    Each column have 2 required field (_name_ and _type_) and a list of optional fields:
+
+    - _name_
+
+        Specifies a column name into MySQL table.
+
+    - _type_
+
+        Specifies column value type. Only _str_, _int_, _email_ types are supported.
+
+    - _col\_type_
+
+        Specifies a type of a column: _userid_, _login_, _pass_. All 3 types should be presented in a columns list.
+
+        Columns with this types (except _userid_) will be checked on **login** request.
+
+    - _required_
+
+        Specifies, that given field is required on sign-up request.
+
+        If the column have a _type_ and not required, that means, that this column will be ignored in the _select_ request to db.
+
+        If the column is not required, this column will be inserted as NULL if not presented in request.
+
 Example configuration for a service named &lt;some\_service>.
 
 > some\_service\_enabled = 1
@@ -127,7 +159,9 @@ This number will be returned to client in response also as a first argument.
 
 ### Authorization packet specification
 
-Daemon expects as a first packet with the following structure:
+Daemon expects as a first packet with the following structure.
+
+If **--no\_auth** command line option is specified, this request shouldn't be sent. This implemented for debug purposes only.
 
 > \[ packet\_id, client\_name, client\_seret \]
 
@@ -165,7 +199,7 @@ Daemon expects input with following structure (json interpretarion):
 
     This is a number of function-specific argumets.
 
-Daemon will return foolowin packet in response (also CBOR encoded):
+Daemon will return following packet in response (also CBOR encoded):
 
 > \[ packet\_id, status, arguments \]
 

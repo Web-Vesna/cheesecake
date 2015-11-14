@@ -55,7 +55,7 @@ sub valid {
 }
 
 sub process {
-	my ($self, $cb) = @_;
+	my ($self, $on_success, $on_error) = @_;
 
 	unless ($self->{processor}) {
 		$logger->err("Processor not found in process()");
@@ -63,9 +63,9 @@ sub process {
 		return;
 	}
 
-	# $cb will call response() method to get response data.
-	# $cb should be called after all processings
-	$self->{processor}->process($cb);
+	# cb will call response() method to get response data.
+	# cb should be called after all processings
+	$self->{processor}->process($on_success, $on_error);
 }
 
 sub response {

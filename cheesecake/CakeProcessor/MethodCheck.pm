@@ -38,7 +38,10 @@ sub process_impl {
 		my $value = shift;
 
 		$logger->trace("Response from memc: '" . ($value // 'undef') . "'");
-		$self->send( defined $value ? 1 : 0 );
+		$self->{err} = "not exists"
+			unless $value;
+
+		$self->send;
 	});
 }
 

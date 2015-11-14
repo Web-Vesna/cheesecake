@@ -232,6 +232,9 @@ sub process {
 	my ($self, $hndl, $cb) = @_;
 	$self->{processor}->process(sub {
 		$cb->($hndl, $self);
+	}, sub {
+		$self->{err} = shift; # error callback
+		$cb->($hndl, $self);
 	});
 }
 

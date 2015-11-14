@@ -128,6 +128,80 @@ Memcached session expire time. All sessions expiration times will be updated on 
 
 A comma-separated list of registered clients secrets (see authorization packet specification below).
 
+=item B<E<lt>serviceE<gt>_db_schema>
+
+This option specifies a database schema to be used in requests.
+
+The schema should be specified as a JSON object.
+
+The object is consists of 2 items: a table name and a list of columns.
+
+Each column have 2 required field (I<name> and I<type>) and a list of optional fields:
+
+=over 16
+
+=item I<name>
+
+Specifies a column name into MySQL table.
+
+=item I<type>
+
+Specifies column value type. Only I<str>, I<int>, I<email> types are supported.
+
+=item I<col_type>
+
+Specifies a type of a column: I<userid>, I<login>, I<pass>. All 3 types should be presented in a columns list.
+
+Columns with this types (except I<userid>) will be checked on B<login> request.
+
+=item I<required>
+
+Specifies, that given field is required on sign-up request.
+
+If the column have a I<type> and not required, that means, that this column will be ignored in the I<select> request to db.
+
+If the column is not required, this column will be inserted as NULL if not presented in request.
+
+=back
+
+=begin code
+
+{
+	table_name : "users",
+	columns: [
+		{
+			name : "id",
+			col_type : "userid",
+			type : "int",
+		}, {
+			name : "login",
+			required : true,
+			col_type : "login",
+			type : "str",
+		}, {
+			name : "password",
+			required : true,
+			col_type : "pass",
+			type : "str",
+		}, {
+			name : "name",
+			required : true,
+			type : "str",
+		}, {
+			name : "lastname"
+			required : false,
+			type : "str",
+		}, {
+			name : "role",
+			required : true,
+			type : "int",
+		},
+		...
+	],
+}
+
+=end code
+
 =back
 
 Example configuration for a service named E<lt>some_serviceE<gt>.
@@ -152,7 +226,9 @@ This number will be returned to client in response also as a first argument.
 
 =head3 Authorization packet specification
 
-Daemon expects as a first packet with the following structure:
+Daemon expects as a first packet with the following structure.
+
+If B<--no_auth> command line option is specified, this request shouldn't be sent. This implemented for debug purposes only.
 
 =over 16
 

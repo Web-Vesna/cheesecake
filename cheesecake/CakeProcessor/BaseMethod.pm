@@ -43,14 +43,19 @@ sub args {
 
 sub send {
 	my ($self, @response) = @_;
-	$self->{response} = \@response;
-	$self->{cb}->();
+	if ($self->{err}) {
+		$self->{on_err}->($self->{err});
+	} else {
+		$self->{response} = \@response;
+		$self->{on_succ}->();
+	}
 }
 
 sub process {
-	my ($self, $cb) = @_;
+	my ($self, $on_succ, $on_err) = @_;
 
-	$self->{cb} = $cb;
+	$self->{on_succ} = $on_succ;
+	$self->{on_err} = $on_err;
 	$self->process_impl; # should be implemented in derived
 }
 
