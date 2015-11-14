@@ -5,6 +5,8 @@ use warnings;
 
 use base qw( Exporter );
 
+use JSON::XS;
+
 use Logger;
 
 our @EXPORT_OK = qw(
@@ -18,6 +20,82 @@ our @EXPORT = @EXPORT_OK;
 {
 	our %Config = ();
 	our $logger = Logger->new("Config");
+
+	sub parse_schema {
+		my ($cfg, $param_name, $str) = @_;
+
+		my $parser = JSON::XS->new;
+		my $decoded = undef;
+		eval {
+			$decoded = $parser->decode($str);
+		};
+
+		return "JSON parse error: $@"
+			if $@ || !$decoded;
+
+		return "JSON parse error: object is expected"
+			if !ref $decoded || ref $decoded ne 'HASH';
+
+		return "table_name is required in JSON"
+			unless $decoded->{table_name};
+
+		return "columns list is required in JSON"
+			unless $decoded->{columns};
+
+		return "columns is is not a list in JSON"
+			unless ref $decoded->{columns} && ref $decoded->{columns} eq 'ARRAY';
+
+		my %required_types = map { $_ => 1 } qw( userid login pass );
+		my %_required_types = map { $_ => 1 } qw( userid login pass );
+		my %types = map { $_ => 1 } qw( int str email );
+		my @columns;
+
+		my %auth_cols;
+
+		for (@{$decoded->{columns}}) {
+			return "invalid column specification: object is required"
+				unless ref $_ && ref $_ eq 'HASH';
+
+			return "both, name and type items required in column specification"
+				unless $_->{name} && $_->{type};
+
+			return "unknown type: '$_->{type}'"
+				unless $types{$_->{type}};
+
+			return "unknown col_type: '$_->{col_type}'"
+				if defined $_->{col_type} && !$_required_types{$_->{col_type}};
+
+			return "only one col_type is required in a columns list: '$_->{col_type}'"
+				if defined $_->{col_type} && !$required_types{$_->{col_type}};
+
+			return "unknown required value for $_->{name}: '$_->{required}': bool is expected"
+				if defined $_->{required} && (!ref $_->{required} || ref $_->{required} ne 'JSON::PP::Boolean');
+
+			delete $required_types{$_->{col_type}}
+				if $_->{col_type};
+
+			push @columns, {
+				name => $_->{name},
+				type => $_->{type},
+				col_type => $_->{col_type},
+				required => ($_->{required} ? 1 : 0),
+			};
+
+			$auth_cols{$_->{col_type}} = $columns[-1]
+				if defined $_->{col_type};
+		}
+
+		return "all coll types, " . join(', ', keys %_required_types) . " are required"
+			if %required_types;
+
+		$cfg->{$param_name} = {
+			table_name => $decoded->{column_name},
+			columns => \@columns,
+			auth_cols => \%auth_cols,
+		};
+
+		return undef;
+	}
 
 	# XXX: 'default' is not capable with 'cb'
 	our %ConfigSpec = (
@@ -74,6 +152,10 @@ our @EXPORT = @EXPORT_OK;
 			},
 			db_name => {
 				type => 'string',
+			},
+			db_schema => {
+				type => 'string',
+				cb => \&parse_schema,
 			},
 			memc_host => {
 				type => 'string',
