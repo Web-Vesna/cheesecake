@@ -21,6 +21,7 @@ sub new {
 		keys_queue => [],
 
 		delete_in_process => {},
+		delete_queue => [],
 	}, $class;
 
 	unless ($connections{$service_name}) {
@@ -62,9 +63,14 @@ sub get {
 }
 
 sub _process_queue {
-	my $self = shift;
+	my ($self, $set_queue, $delete_queue) = @_;
 
-	for (@_) {
+	# at first we should close old sessions and only then open new
+	for (@$delete_queue) {
+		$self->delete(@$_);
+	}
+
+	for (@$set_queue) {
 		$self->set(@$_);
 	}
 }
@@ -89,9 +95,10 @@ sub set {
 	my $do_process = sub {
 		# should be called just 2 times per uid
 		if (--$in_process->{$uid} == 0) {
-			my $queue = $self->{keys_queue};
+			my @queue = ($self->{keys_queue}, $self->{delete_queue};
 			$self->{keys_queue} = [];
-			$self->_process_queue(@$queue);
+			$self->{delete_queue} = [];
+			$self->_process_queue(@queue);
 		}
 	};
 
@@ -128,6 +135,13 @@ sub delete_by_sid {
 
 sub delete_by_uid {
 	my ($self, $uid) = @_;
+
+	if ($self->{keys_in_process}{$uid}) {
+		# close new sessions, who start to authorize before sessions close
+		shift;
+		push @{$self->{delete_queue}}, \@_;
+		return;
+	}
 
 	# ignore authentifications of users whose sessions we trying to close
 	$self->{delete_in_process}{$uid} = 1;
