@@ -3,3 +3,7 @@ config
 .*
 */.*
 */*~
+MYMETA.yml
+MYMETA.json
+Makefile
+CheeseCake*
