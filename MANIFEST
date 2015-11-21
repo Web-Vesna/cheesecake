@@ -1,4 +1,6 @@
 LICENSE
+MANIFEST
+Makefile.PL
 README.pod
 cheesecake/CakeConfig.pm
 cheesecake/CakeProcessor.pm

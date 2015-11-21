@@ -30,12 +30,12 @@ WriteMakefile(
 	BUILD_REQUIRES	=> {
 		'Pod::Man'		=> 0,
 	},
-	MAN3POD		=> {
+	MAN3PODS	=> {
 		'README.pod'		=> 'blib/man3/CheeseCake.l',
 	},
 	dist		=> {
 		COMPRESS		=> 'gzip -9f',
 		SUFFIX			=> 'gz',
-		PREOP			=> $preop,
+		#PREOP			=> $preop,
 	},
 );
