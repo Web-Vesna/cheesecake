@@ -38,38 +38,38 @@ BEGIN {
 		}
 }
 
-my %deps;
+my @deps;
 BEGIN {
-	%deps = (
-		'EV'			=> '',
-		'Errno'			=> '',
-		'FindBin'		=> '',
-		'CBOR::XS'		=> '',
-		'JSON::XS'		=> '',
-		'AnyEvent'		=> '',
-		'Pod::Man'		=> '',
-		'DBD::mysql'		=> '',
-		'Pod::Usage'		=> '',
-		'Scalar::Util'		=> '',
-		'Getopt::Long'		=> '',
-		'AnyEvent::Handle'	=> '',
-		'AnyEvent::Socket'	=> '',
-		'AnyEvent::Memcached'	=> '',
-		'AnyEvent::DBI::MySQL'	=> '',
-		'Data::Dumper::OneLine'	=> '',
+	@deps = (
+		'FindBin'		=> '0',
+		'Pod::Man'		=> '0',
+		'Pod::Usage'		=> '0',
+		'Getopt::Long'		=> '0',
+		'Errno'			=> '0',
+		'EV'			=> '0',
+		'AnyEvent'		=> '0',
+		'CBOR::XS'		=> '0',
+		'JSON::XS'		=> '0',
+		'DBD::mysql'		=> '0',
+		'Scalar::Util'		=> '0',
+		'AnyEvent::Handle'	=> '0',
+		'AnyEvent::Socket'	=> '0',
+		'AnyEvent::DBI::MySQL'	=> '0',
+		'AnyEvent::Memcached'	=> '0',
+		'Data::Dumper::OneLine'	=> '0',
 	);
 }
 
 use ExtUtils::AutoInstall (
 	-core => [
-		%deps,				# project deps
+		@deps,				# project deps
 		'ExtUtils::MakeMaker'	=> '',	# build deps
 	],
 );
 
 # install required modules while generating Makefile
 # just a hack not to add a Module::Install module to the repo
-ExtUtils::AutoInstall->install([], %deps);
+ExtUtils::AutoInstall->install([], @deps);
 
 use ExtUtils::MakeMaker;
 
@@ -85,5 +85,5 @@ WriteMakefile(
 		COMPRESS		=> 'gzip -9f',
 		SUFFIX			=> 'gz',
 	},
-	PREREQ_PM	=> { map { $_ => ($deps{$_} || 0) } keys %deps },
+	PREREQ_PM	=> { @deps },
 );
