@@ -14,6 +14,18 @@ main.pl \[options\]
       --help|-h           brief help message;
       --man|-m            show full documentation;
 
+# INSTALL
+
+To generate a Makefile run
+
+> perl Makefile.pl
+
+All dependences will be downloaded and installed automatically. Then type
+
+> make && make install
+
+to install a module.
+
 # OPTIONS
 
 - **--config**

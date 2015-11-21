@@ -14,6 +14,26 @@ main.pl [options]
     --help|-h           brief help message;
     --man|-m            show full documentation;
 
+=head1 INSTALL
+
+To generate a Makefile run
+
+=over 8
+
+perl Makefile.pl
+
+=back
+
+All dependences will be downloaded and installed automatically. Then type
+
+=over 8
+
+make && make install
+
+=back
+
+to install a module.
+
 =head1 OPTIONS
 
 =over 8

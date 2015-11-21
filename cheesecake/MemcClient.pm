@@ -95,7 +95,7 @@ sub set {
 	my $do_process = sub {
 		# should be called just 2 times per uid
 		if (--$in_process->{$uid} == 0) {
-			my @queue = ($self->{keys_queue}, $self->{delete_queue};
+			my @queue = ($self->{keys_queue}, $self->{delete_queue});
 			$self->{keys_queue} = [];
 			$self->{delete_queue} = [];
 			$self->_process_queue(@queue);
