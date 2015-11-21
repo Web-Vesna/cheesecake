@@ -9,7 +9,7 @@ use CakeConfig qw( service );
 
 # TODO: PROCESS MEMCACHED ERRORS !!!
 
-require Logger;
+use Logger;
 
 my %connections;
 

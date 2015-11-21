@@ -8,17 +8,10 @@ use Scalar::Util qw( reftype );
 use base qw( Exporter );
 
 our @EXPORT = qw(
-	new
-
-	trace
-	debug
-	info
-	warn
-	err
-
-	set_log_lvl
 	log_lvl
+	set_log_lvl
 );
+our @EXPORT_OK = @EXPORT;
 
 {
 	our $LOG_LVL = 2;

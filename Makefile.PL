@@ -45,6 +45,7 @@ BEGIN {
 		'Pod::Man'		=> '0',
 		'Pod::Usage'		=> '0',
 		'Getopt::Long'		=> '0',
+		'List::Util'		=> '0',
 		'Errno'			=> '0',
 		'EV'			=> '0',
 		'AnyEvent'		=> '0',
@@ -54,9 +55,9 @@ BEGIN {
 		'Scalar::Util'		=> '0',
 		'AnyEvent::Handle'	=> '0',
 		'AnyEvent::Socket'	=> '0',
-		'AnyEvent::DBI::MySQL'	=> '0',
 		'AnyEvent::Memcached'	=> '0',
 		'Data::Dumper::OneLine'	=> '0',
+		'Mail::RFC822::Address'	=> '0',
 	);
 }
 
