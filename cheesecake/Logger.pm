@@ -40,20 +40,20 @@ our @EXPORT = qw(
 		my ($class, $prefix) = @_;
 
 		return bless {
-			prefix => "$prefix: ",
+			prefix => $prefix,
 		}, $class;
 	}
 
 	sub real_warn {
-		my ($prefix, $msg) = @_;
+		my ($type, $prefix, $msg) = @_;
 		return unless defined($prefix);
 
-		warn "$prefix$msg\n";
+		warn sprintf "%s [$type] [$prefix] $msg\n", scalar localtime;
 	}
 
 	sub prepare {
 		my ($self, $msg) = @_;
-		my $prefix = "";
+		my $prefix = "unknown";
 		if (reftype $self ne 'HASH') {
 			$msg = $self;
 		} else {
@@ -62,7 +62,7 @@ our @EXPORT = qw(
 
 		if (defined reftype $msg) {
 			use Data::Dumper;
-			real_warn "Logger: ", "Invalid message came: " . Dumper $msg;
+			real_warn "Logger", "Invalid message came: " . Dumper $msg;
 			return;
 		}
 
@@ -71,27 +71,27 @@ our @EXPORT = qw(
 
 	sub trace {
 		return if $LOG_LVL < 5;
-		real_warn prepare @_;
+		real_warn "T", prepare @_;
 	}
 
 	sub debug {
 		return if $LOG_LVL < 4;
-		real_warn prepare @_;
+		real_warn "D", prepare @_;
 	}
 
 	sub info {
 		return if $LOG_LVL < 3;
-		real_warn prepare @_;
+		real_warn "I", prepare @_;
 	}
 
 	sub warn {
 		return if $LOG_LVL < 2;
-		real_warn prepare @_;
+		real_warn "W", prepare @_;
 	}
 
 	sub err {
 		return if $LOG_LVL < 1;
-		real_warn prepare @_;
+		real_warn "E", prepare @_;
 	}
 }
 

@@ -204,6 +204,7 @@ use base qw( CakeProto::Packet );
 
 use CakeProcessor;
 use MemcClient;
+use MysqlClient;
 
 sub _parse_packet_impl {
 	my ($self, $packet) = @_;
@@ -217,7 +218,10 @@ sub _parse_packet_impl {
 	die "Auth client is not set!\n"
 		unless $self->{auth_client};
 
-	$self->{processor} = CakeProcessor->new($func_name, $packet, MemcClient->new($self->{auth_client}));
+	$self->{processor} = CakeProcessor->new($func_name, $packet,
+		memc	=> MemcClient->new($self->{auth_client}),
+		dbi	=> MysqlClient->new($self->{auth_client}),
+	);
 	unless ($self->{processor}->valid) {
 		$self->{err} = $self->{processor}->errstr;
 	}

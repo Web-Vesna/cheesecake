@@ -4,7 +4,7 @@ use strict;
 use warnings;
 
 # ExtUtils::AutoInstall Bootstrap Code, version 7.
-BEGIN{
+BEGIN {
 	my $p = 'ExtUtils::AutoInstall';
 	my $v = 0.45;
 	$p->VERSION || 0 >= $v or
@@ -48,12 +48,14 @@ BEGIN {
 		'JSON::XS'		=> '',
 		'AnyEvent'		=> '',
 		'Pod::Man'		=> '',
+		'DBD::mysql'		=> '',
 		'Pod::Usage'		=> '',
 		'Scalar::Util'		=> '',
 		'Getopt::Long'		=> '',
 		'AnyEvent::Handle'	=> '',
-		'AnyEvent::Memcached'	=> '',
 		'AnyEvent::Socket'	=> '',
+		'AnyEvent::Memcached'	=> '',
+		'AnyEvent::DBI::MySQL'	=> '',
 		'Data::Dumper::OneLine'	=> '',
 	);
 }

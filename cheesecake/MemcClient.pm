@@ -22,6 +22,8 @@ sub new {
 
 		delete_in_process => {},
 		delete_queue => [],
+
+		logger => Logger->new("MemcachedClient ($service_name)"),
 	}, $class;
 
 	unless ($connections{$service_name}) {
@@ -33,10 +35,16 @@ sub new {
 	return $self;
 }
 
+sub logger {
+	return shift->{logger};
+}
+
 sub establish_connection {
 	my ($self, $service_name) = @_;
 
 	my ($host, $port, $prefix, $exptime) = @{service($service_name)}{qw( memc_host memc_port memc_prefix session_expire_time )};
+
+	$self->logger->info("Initialization of a service connection");
 
 	my $memc = AnyEvent::Memcached->new(
 		servers => [ "$host:$port" ],
@@ -48,12 +56,10 @@ sub establish_connection {
 		namespace => "$prefix:_uid:",
 	);
 
-	my $logger = Logger->new("MemcachedClient");
 	$connections{$service_name} = {
 		sid_memc => $memc,
 		uid_memc => $memc2,
 		exptime => $exptime,
-		logger => $logger,
 	};
 }
 
@@ -65,12 +71,16 @@ sub get {
 sub _process_queue {
 	my ($self, $set_queue, $delete_queue) = @_;
 
+	$self->logger->warn("Starting to process queued actions");
+
 	# at first we should close old sessions and only then open new
 	for (@$delete_queue) {
+		$self->logger->info("Processing queued delete action for uid $_->[0]");
 		$self->delete(@$_);
 	}
 
 	for (@$set_queue) {
+		$self->logger->info("Processing queued set action for uid $_->[1]");
 		$self->set(@$_);
 	}
 }
@@ -87,6 +97,7 @@ sub set {
 	my $in_process = $self->{keys_in_process}; # to remove race-conditions
 	if ($in_process->{$uid}) {
 		shift;
+		$self->logger->warn("Queuing set action for uid $uid");
 		push @{$self->{keys_queue}}, \@_;
 		return;
 	}
@@ -114,7 +125,7 @@ sub set {
 		my ($val, $err) = @_;
 
 		if ($err) {
-			$self->{conn}{logger}->err("Can't get uid info: $uid: $@");
+			$self->logger->err("Can't get uid info: $uid: $@");
 			$val = undef;
 		}
 
@@ -139,6 +150,7 @@ sub delete_by_uid {
 	if ($self->{keys_in_process}{$uid}) {
 		# close new sessions, who start to authorize before sessions close
 		shift;
+		$self->logger->warn("Queuing delete action for uid $uid");
 		push @{$self->{delete_queue}}, \@_;
 		return;
 	}
@@ -149,7 +161,7 @@ sub delete_by_uid {
 		my ($val, $err) = @_;
 
 		if ($err) {
-			$self->{conn}{logger}->err("Can't get uid info: $uid: $@");
+			$self->logger->err("Can't get uid info: $uid: $@");
 			return;
 		}
 

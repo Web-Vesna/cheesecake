@@ -11,12 +11,13 @@ require Logger;
 my $logger = Logger->new("BaseMethod");
 
 sub new {
-	my ($class, $processor_args, $memc) = @_;
+	my ($class, $processor_args, %args) = @_;
 
 	$logger->trace("$class method invoked with args " . Dumper $processor_args);
 
 	my $self = bless {
-		memc => $memc,
+		memc => $args{memc},
+		dbi => $args{dbi},
 	}, $class;
 
 	unless ($self->check_args($processor_args)) { # method should be implemented in derived

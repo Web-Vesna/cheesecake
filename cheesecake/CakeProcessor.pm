@@ -10,7 +10,7 @@ require Logger;
 my $logger = Logger->new("CakeProcessor");
 
 sub new {
-	my ($class, $func_name, $args, $memc) = @_;
+	my ($class, $func_name, $f_args, %args) = @_;
 
 	my $self = bless {}, $class;
 
@@ -18,7 +18,7 @@ sub new {
 	unless ($processor) {
 		$self->{err} = "unknown function was called: $func_name";
 	} else {
-		$self->{processor} = $processor->new($args, $memc);
+		$self->{processor} = $processor->new($f_args, %args);
 		$self->{err} = $self->{processor}->errstr
 			unless $self->{processor}->valid;
 	}

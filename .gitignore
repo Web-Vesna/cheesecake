@@ -6,4 +6,5 @@ config
 MYMETA.yml
 MYMETA.json
 Makefile
-CheeseCake*
+pm_to_blib
+blib/*
