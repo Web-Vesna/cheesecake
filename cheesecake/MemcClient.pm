@@ -145,7 +145,7 @@ sub delete_by_sid {
 }
 
 sub delete_by_uid {
-	my ($self, $uid) = @_;
+	my ($self, $uid, $cb) = @_;
 
 	if ($self->{keys_in_process}{$uid}) {
 		# close new sessions, who start to authorize before sessions close
@@ -166,10 +166,10 @@ sub delete_by_uid {
 		}
 
 		for (@$val) {
-			$self->{conn}{sid_memc}->delete($_, noreply => 1);
+			$self->{conn}{sid_memc}->delete($_, no_reply => 1);
 		}
 
-		$self->{conn}{uid_memc}->delete($uid, noreply => 1);
+		$self->{conn}{uid_memc}->delete($uid, cb => $cb // sub {});
 		$self->{delete_in_process}{$uid} = 0;
 	});
 }
