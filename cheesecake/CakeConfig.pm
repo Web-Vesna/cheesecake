@@ -50,8 +50,6 @@ our @EXPORT = @EXPORT_OK;
 		my %types = map { $_ => 1 } qw( int str email );
 		my @columns;
 
-		my %auth_cols;
-
 		for (@{$decoded->{columns}}) {
 			return "invalid column specification: object is required"
 				unless ref $_ && ref $_ eq 'HASH';
@@ -80,18 +78,14 @@ our @EXPORT = @EXPORT_OK;
 				col_type => $_->{col_type},
 				required => ($_->{required} ? 1 : 0),
 			};
-
-			$auth_cols{$_->{col_type}} = $columns[-1]
-				if defined $_->{col_type};
 		}
 
 		return "all coll types, " . join(', ', keys %_required_types) . " are required"
 			if %required_types;
 
 		$cfg->{$param_name} = {
-			table_name => $decoded->{column_name},
+			table_name => $decoded->{table_name},
 			columns => \@columns,
-			auth_cols => \%auth_cols,
 		};
 
 		return undef;

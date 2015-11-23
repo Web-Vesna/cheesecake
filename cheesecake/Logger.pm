@@ -4,6 +4,7 @@ use strict;
 use warnings;
 
 use Scalar::Util qw( reftype );
+use Devel::StackTrace;
 
 use base qw( Exporter );
 
@@ -38,9 +39,13 @@ our @EXPORT_OK = @EXPORT;
 	}
 
 	sub real_warn {
-		my ($type, $prefix, $msg) = @_;
+		my ($self, $type, $prefix, $msg) = @_;
 		return unless defined($prefix);
 
+		unless (defined $msg) {
+			$self->err("Uninitialized message came from " . Devel::StackTrace->new->as_string);
+			return;
+		}
 		warn sprintf "%s [$type] [$prefix] $msg\n", scalar localtime;
 	}
 
@@ -55,7 +60,7 @@ our @EXPORT_OK = @EXPORT;
 
 		if (defined reftype $msg) {
 			use Data::Dumper;
-			real_warn "Logger", "Invalid message came: " . Dumper $msg;
+			real_warn $self, "Logger", "Invalid message came: " . Dumper $msg;
 			return;
 		}
 
@@ -63,28 +68,33 @@ our @EXPORT_OK = @EXPORT;
 	}
 
 	sub trace {
+		my $self = shift;
 		return if $LOG_LVL < 5;
-		real_warn "T", prepare @_;
+		$self->real_warn("T", $self->prepare(@_));
 	}
 
 	sub debug {
+		my $self = shift;
 		return if $LOG_LVL < 4;
-		real_warn "D", prepare @_;
+		$self->real_warn("D", $self->prepare(@_));
 	}
 
 	sub info {
+		my $self = shift;
 		return if $LOG_LVL < 3;
-		real_warn "I", prepare @_;
+		$self->real_warn("I", $self->prepare(@_));
 	}
 
 	sub warn {
+		my $self = shift;
 		return if $LOG_LVL < 2;
-		real_warn "W", prepare @_;
+		$self->real_warn("W", $self->prepare(@_));
 	}
 
 	sub err {
+		my $self = shift;
 		return if $LOG_LVL < 1;
-		real_warn "E", prepare @_;
+		$self->real_warn("E", $self->prepare(@_));
 	}
 }
 

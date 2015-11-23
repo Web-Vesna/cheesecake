@@ -8,7 +8,7 @@ use CakeConfig qw( service );
 
 use Mail::RFC822::Address ();
 
-use List::Util;
+use List::Util qw( first );
 use AnyEvent;
 use DBI;
 
@@ -63,7 +63,7 @@ sub establish_connection {
 		pass_col => $find_by_type->('pass'),
 	);
 
-	my @cols_list = map { $_->{name} } grep { $_->{col_type} ne 'userid' } @{ $schema->{columns} };
+	my @cols_list = map { $_->{name} } grep { !$_->{col_type} || $_->{col_type} ne 'userid' } @{ $schema->{columns} };
 
 	$connections{$service_name} = {
 		dbh => $dbh,
@@ -111,10 +111,10 @@ sub queue_up {
 	}
 
 	my @args = @args{@{ $r->{p} }};
-	unless (scalar(@args) != scalar(@{ $r->{p} })) {
+	if (scalar(@args) != scalar(@{ $r->{p} })) {
 		$self->logger->err("Failed to execute '$request_name': invalid number of arguments: " .
 			scalar(@{ $r->{p} }) . " expected, " . scalar(@args) . " found");
-		return $callback(undef, 'invalid args');
+		return $callback->(undef, 'invalid args');
 	}
 
 	$r->{sth} //= $c->{dbh}->prepare($r->{r}, { async => 1 });
@@ -150,7 +150,7 @@ sub process_queue {
 			my @args = @{$req->{args}};
 			my $x;
 			do { $x = shift @args; } while ($req_str =~ s/\?/'$x'/);
-			$self->logger->trace($req);
+			$self->logger->trace("MySQL> $req_str");
 		}
 
 		unless ($req->{sth}->execute(@{$req->{args}})) {
@@ -170,7 +170,15 @@ sub process_queue {
 			$self->logger->trace("Got response for '$req->{r_name}' from mysql");
 
 			my @result;
+			# use mysql_async_result instead ?
 			while (my $row = $req->{sth}->fetchrow_hashref) {
+				if (ref $row && ref $row eq 'HASH') {
+					for (keys %{$c->{extra_cols}}) {
+						my ($name) = /^(.*)_col/;
+						$row->{$name} = delete $row->{$c->{extra_cols}{$_}}
+							if $row->{$c->{extra_cols}{$_}};
+					}
+				}
 				push @result, $row;
 			}
 
@@ -208,7 +216,7 @@ sub check_cols {
 	my ($given, $expected) = @_;
 
 	for my $col (@$expected) {
-		return "$col->{name} is required"
+		next # error will be processed later if col is required
 			unless defined $given->{$col->{name}};
 		return "$col->{name} should be integer"
 			if $col->{type} eq 'int' && $given->{$col->{name}} =~ /\D/;
@@ -219,7 +227,7 @@ sub check_cols {
 	return undef;
 }
 
-sub _insert_replace {
+sub insert_replace {
 	# $callback->($error)
 	my ($self, $type, @args) = @_;
 
@@ -248,12 +256,12 @@ sub _insert_replace {
 
 sub insert {
 	# $callback->($error)
-	_insert_replace('add_row', @_);
+	insert_replace('insert', @_);
 }
 
 sub replace {
 	# $callback->($error)
-	_insert_replace('change_row', @_);
+	insert_replace('replace', @_);
 }
 
 1;

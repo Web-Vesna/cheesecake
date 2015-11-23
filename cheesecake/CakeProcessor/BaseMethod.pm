@@ -70,4 +70,8 @@ sub memc {
 	return shift->{memc};
 }
 
+sub dbi {
+	return shift->{dbi};
+}
+
 1;
