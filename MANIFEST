@@ -7,8 +7,12 @@ cheesecake/CakeProcessor.pm
 cheesecake/CakeProcessor/BaseMethod.pm
 cheesecake/CakeProcessor/MethodAbout.pm
 cheesecake/CakeProcessor/MethodCheck.pm
+cheesecake/CakeProcessor/MethodLogin.pm
+cheesecake/CakeProcessor/MethodLogout.pm
+cheesecake/CakeProcessor/MethodRegister.pm
 cheesecake/CakeProto.pm
 cheesecake/Logger.pm
 cheesecake/MainLoop.pm
 cheesecake/MemcClient.pm
+cheesecake/MysqlClient.pm
 cheesecake/main.pl

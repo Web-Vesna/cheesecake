@@ -324,3 +324,5 @@ Following functions are expected:
     The request will try to register a user with specified parametrs (third hash argument).
 
     All options, specified as required for register request (see cofiguration file specification below) should present in parametrs.
+
+    On success new session id will be returned as third argument and user info in forth.
