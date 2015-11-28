@@ -10,7 +10,7 @@ use Data::Dumper::OneLine;
 require Logger;
 my $logger = Logger->new("AboutMethod");
 
-sub process_impl {
+sub process {
 	my $self = shift;
 
 	$logger->trace("Processing started");
@@ -18,10 +18,10 @@ sub process_impl {
 		my $value = shift;
 
 		$logger->trace("Response from memc: '" . ($value // 'undef') . "'");
-		$self->{err} = "not exists"
+		$self->packet_invalid("not exists")
 			unless $value;
 
-		$self->send($value);
+		$self->packet_valid($value);
 	});
 }
 

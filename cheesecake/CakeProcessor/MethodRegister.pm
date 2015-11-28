@@ -14,23 +14,23 @@ sub check_args {
 	my ($self, $args) = @_;
 
 	my $real_args;
+	my $err = "";
 	unless ($args && @$args) {
-		$self->{err} = "no arguments";
+		$err = "no arguments";
 	} elsif (scalar @$args != 1) {
-		$self->{err} = "too many argumets: 1 expected";
+		$err = "too many argumets: 1 expected";
 	} elsif (!ref($args->[0]) || ref($args->[0]) ne 'HASH') {
-		$self->{err} = "invalid argument: '" . Dumper($args->[0]) . "'. Object is expected";
+		$err = "invalid argument: '" . Dumper($args->[0]) . "'. Object is expected";
 	} elsif ((my $err, $real_args) = $self->validate_schema($args->[0])) {
-		$self->{err} = "invalid schema: '" . Dumper($args->[0]) . "'. $err.";
+		$err = "invalid schema: '" . Dumper($args->[0]) . "'. $err.";
 	} else {
 		$logger->trace("Validation complete successfully. Check extra conditions");
 		$self->check_extra_conditions($real_args);
 		return undef;
 	}
 
-	$logger->info("Validation failed: $self->{err}");
-
-	return 0;
+	$logger->info("Validation failed: $err");
+	return $self->packet_invalid($err);
 }
 
 sub validate_schema {
@@ -90,20 +90,19 @@ sub check_extra_conditions {
 				my $err = shift;
 				if ($err) {
 					$failed = 1;
-					$self->{err} = $err;
-					return $self->packet_invalid;
+					return $self->packet_invalid($err);
 				}
 
 				unless (--$reqs_sent) {
 					$self->{user_info} = $data;
-					$self->packet_valid;
+					$self->process;
 				}
 			});
 		}
 	}
 }
 
-sub process_impl {
+sub process {
 	my $self = shift;
 
 	my $login = $self->{user_info}{$self->dbi->extra_col('login')};
@@ -112,8 +111,7 @@ sub process_impl {
 	$self->dbi->insert(%{$self->{user_info}}, sub {
 		my ($uid, $err) = @_;
 		if ($err) {
-			$self->{err} = $err;
-			return $self->send;
+			return $self->packet_invalid($err);
 		}
 
 		# inserted user info can be different as requested.
@@ -121,12 +119,11 @@ sub process_impl {
 		$self->dbi->select(uid => $uid, sub {
 			my ($response, $err) = @_;
 			if ($err) {
-				$self->{err} = $err;
-				return $self->send;
+				return $self->packet_invalid($err);
 			}
 
 			$self->create_session($response, sub {
-				return $self->send(shift, $response); # session id && user info
+				return $self->packet_valid(shift, $response); # session id && user info
 			});
 		});
 	});

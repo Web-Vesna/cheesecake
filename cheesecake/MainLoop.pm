@@ -25,7 +25,7 @@ our @EXPORT = qw(
 	my $logger = Logger->new("MainLoop");
 	my @clients; # XXX: overflow is expected: FIXME
 
-	my $auth_client = undef;
+	my $auth_client = undef; # global auth client, should be setup from command line
 	sub skip_auth {
 		$auth_client = shift;
 	}
@@ -75,16 +75,25 @@ our @EXPORT = qw(
 
 		$logger->trace("Preparing read_packet event for $packet_type packet");
 		return create_proto($host, $port, $client // $auth_client)->on_read_event(($is_auth ? 'auth' : undef) => sub {
-			my ($hndl, $packet) = @_;
+			my ($hndl, $response, $auth_cli) = @_;
 			$logger->debug("$packet_type packet came from $host, $port");
 
-			my $auth_cli = $is_auth ? $packet->{auth_client} : ($client // $auth_client);
+			my $need_close = 0;
 			if ($is_auth) {
-				$logger->info("Setting auth client as $auth_cli");
+				if (!$auth_cli) {
+					$logger->err("Auth client is not defined in auth response! Close connection");
+					$need_close = 1;
+				} else {
+					$logger->info("Setting auth client as $auth_cli");
+				}
 			}
 
-			$hndl->push_write($packet->response);
-			$hndl->push_read(on_packet_read($host, $port, $auth_cli));
+			$hndl->push_write($response);
+			if ($need_close) {
+				$hndl->push_shutdown;
+			} else {
+				$hndl->push_read(on_packet_read($host, $port, $auth_cli));
+			}
 		});
 	}
 

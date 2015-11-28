@@ -91,17 +91,19 @@ our @EXPORT = qw(
 
 			$logger->trace("Packet came into on_read");
 
-			my $packet = $pack_type->new(
+			$pack_type->new(
 				$data,
-				encode => \&_encode,
 				auth_client => $self->{auth_client},
+				on_success => sub {
+					my ($response, $auth_cli) = @_;
+					$sub->($hndl, _encode($response), $auth_cli);
+				},
+				on_error => sub {
+					my ($response, $err) = @_;
+					$logger->err("Invalid packet came from '$self->{credentials}': $err");
+					$sub->($hndl, _encode($response));
+				},
 			);
-			if ($packet->valid) {
-				return $packet->process($hndl, $sub);
-			}
-
-			$logger->err("Invalid packet came from '$self->{credentials}': " . $packet->errstr() . ". Close connection");
-			return $sub->($hndl, $packet);
 		};
 	}
 
@@ -110,8 +112,8 @@ our @EXPORT = qw(
 
 		$logger->err("Invalid packet came from '$self->{credentials}'");
 
-		my $packet = CakeProto::BadPacket->new(undef, encode => \&_encode);
-		$self->{cb_close}($hndl, $packet->response);
+		my $packet = CakeProto::BadPacket->new;
+		$self->{cb_close}($hndl, _encode($packet->response(error => 'bad packet')));
 	}
 }
 
@@ -127,21 +129,32 @@ use Data::Dumper::OneLine;
 sub new {
 	my ($class, $packet, %args) = @_;
 
-	my $self = bless \%args, $class;
+	my $self = bless {
+		encode		=> $args{encode},
+		auth_client	=> $args{auth_client},
+		on_success	=> $args{on_success},
+		on_error	=> $args{on_error},
+		logger		=> Logger->new($class =~ /::(.*)/),
+	}, $class;
 
-	$self->{logger} = Logger->new($class =~ /::(.*)/);
-	$self->{packet} = $self->parse_packet($packet);
-
+	$self->parse_packet($packet);
 	return $self;
 }
 
-sub valid {
-	return not defined shift->{err};
+sub packet_valid {
+	my ($self, $data, $auth_cli) = @_;
+	$self->{on_success}->($self->response(data => $data), $auth_cli);
+}
+
+sub packet_invalid {
+	my ($self, $err) = @_;
+	$self->{logger}->warn($err);
+	$self->{on_error}->($self->response(error => $err), $err);
 }
 
 sub process {
-	my ($self, $hndl, $cb) = @_;
-	return $cb->($hndl, $self); # no processing by default
+	my ($self, $cb) = @_;
+	return $cb->($self); # no processing by default
 }
 
 sub parse_packet {
@@ -149,46 +162,38 @@ sub parse_packet {
 
 	$self->trace(request => $packet);
 
-	unless ($packet) {
-		$self->{err} = "no data";
-		return;
-	}
+	return $self->packet_invalid("no data")
+		unless $packet;
 
-	unless (ref $packet && ref $packet eq 'ARRAY') {
-		$self->{err} = "invalid packet type: array expected";
-		return;
-	}
+	return $self->packet_invalid("invalid packet type: array expected")
+		unless ref $packet && ref $packet eq 'ARRAY';
 
 	$self->{packet_id} = shift @$packet;
-	return $self->_parse_packet_impl($packet);
-}
-
-sub errstr {
-	return shift->{err} // "success";
+	$self->_parse_packet_impl($packet);
 }
 
 sub response {
-	my ($self) = @_;
+	my ($self, $value_type, $value) = @_;
+
 	my @resp = ( $self->{packet_id} );
-	if ($self->{err}) {
-		push @resp, 0, $self->{err};
+	if ($value_type eq 'error') {
+		push @resp, 0, $value;
+	} elsif ($value_type eq 'data') {
+ 		push @resp, 1, @$value;
 	} else {
- 		push @resp, 1, $self->prepare_response;
+		die "Invalid value type came: $value_type\n";
 	}
+
 	$self->trace(response => \@resp);
 
-	return $self->{encode}(\@resp);
-}
-
-sub logger {
-	return shift->{logger};
+	return \@resp;
 }
 
 sub trace {
 	my ($self, $type, $val) = @_;
 
 	if (Logger::log_lvl eq 'trace') {
-		$self->logger->trace(sprintf(({
+		$self->{logger}->trace(sprintf(({
 			request => "Request",
 			response => "Response",
 		}->{$type // ""} // "Unknown") . " packet: '%s'", Dumper $val));
@@ -210,48 +215,24 @@ sub _parse_packet_impl {
 	my ($self, $packet) = @_;
 
 	my $func_name = shift @$packet;
-	unless ($func_name) {
-		$self->{err} = "function name is not specified";
-		return;
-	}
+	return $self->packet_invalid("function name is not specified")
+		unless $func_name;
 
 	die "Auth client is not set!\n"
 		unless $self->{auth_client};
 
-	$self->{processor} = CakeProcessor->new($func_name, $packet,
-		memc	=> MemcClient->new($self->{auth_client}),
-		dbi	=> MysqlClient->new($self->{auth_client}),
+	CakeProcessor::process_function($func_name, $packet,
+		memc		=> MemcClient->new($self->{auth_client}),
+		dbi		=> MysqlClient->new($self->{auth_client}),
+		on_valid	=> sub {
+			$self->packet_valid(\@_);
+		},
+		on_invalid	=> sub {
+			my ($err) = @_;
+			$self->packet_invalid($err);
+		}
 	);
-	unless ($self->{processor}->valid) {
-		$self->{err} = $self->{processor}->errstr;
-	}
 }
-
-sub prepare_response {
-	my ($self, $args) = @_;
-	return $self->{processor}->response;
-}
-
-sub process {
-	my ($self, $hndl, $cb) = @_;
-	$self->{processor}->process(sub {
-		$cb->($hndl, $self);
-	}, sub {
-		$self->{err} = shift; # error callback
-		$cb->($hndl, $self);
-	});
-}
-
-sub valid {
-	my $self = shift;
-	return !defined($self->{err}) && $self->{processor} && $self->{processor}->valid;
-}
-
-sub errstr {
-	my $self = shift;
-	return $self->{err} // ($self->{processor} && !$self->{processor}->valid) // "success";
-}
-
 
 1;
 
@@ -278,23 +259,15 @@ sub _parse_packet_impl {
 
 	unless ($service) {
 		$self->{logger}->warn("Unexpected service requested: '$client_name'");
-		$self->{err} = "no such service";
-		return;
+		return $self->packet_invalid("no such service");
 	}
 
 	unless (grep { $_ eq $client_secret } @{$service->{secrets}}) {
 		$self->{logger}->warn("Unexpexted service secret requested: '$client_name', '$client_secret'");
-		$self->{err} = "no such service";
-		return;
+		return $self->packet_invalid("no such service");
 	}
 
-	$self->{auth_client} = $client_name;
-
-	return {};
-}
-
-sub prepare_response {
-	return (); # nothing in response
+	return $self->packet_valid([], $client_name);
 }
 
 1;
@@ -306,9 +279,6 @@ use warnings;
 
 use base qw( CakeProto::Packet );
 
-sub parse_packet {
-	shift->{err} = "bad packet";
-	return undef;
-}
+sub parse_packet {}
 
 1;

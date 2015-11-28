@@ -4,29 +4,31 @@ use strict;
 use warnings;
 
 use base qw( Exporter );
+our @EXPORT = qw( process_function );
 
 require Logger;
 
 my $logger = Logger->new("CakeProcessor");
 
-sub new {
-	my ($class, $func_name, $f_args, %args) = @_;
+sub process_function {
+	my ($func_name, $f_args, %args) = @_;
 
-	my $self = bless {}, $class;
-
-	my $processor = _load_processor($func_name);
-	unless ($processor) {
-		$self->{err} = "unknown function was called: $func_name";
+	my $method = _load_method($func_name);
+	unless ($method) {
+		$args{on_invalid}->("unknown function was called: $func_name");
 	} else {
-		$self->{processor} = $processor->new($f_args, %args);
-		$self->{err} = $self->{processor}->errstr
-			unless $self->{processor}->valid;
+		$method->new($f_args, %args,
+			on_valid => sub {
+				return $args{on_valid}->(@_);
+			},
+			on_invalid => sub {
+				my ($err) = @_;
+				return $args{on_invalid}->($err);
+			});
 	}
-
-	return $self;
 }
 
-sub _load_processor {
+sub _load_method {
 	my $func_name = shift;
 
 	our %loaded = ();
@@ -48,39 +50,6 @@ sub _load_processor {
 	}
 
 	return $loaded{$func_name};
-}
-
-sub valid {
-	return not defined shift->{err};
-}
-
-sub process {
-	my ($self, $on_success, $on_error) = @_;
-
-	unless ($self->{processor}) {
-		$logger->err("Processor not found in process()");
-		$self->{err} = "processor not found";
-		return;
-	}
-
-	# cb will call response() method to get response data.
-	# cb should be called after all processings
-	$self->{processor}->process($on_success, $on_error);
-}
-
-sub response {
-	my $self = shift;
-
-	unless ($self->{processor}) {
-		$logger->err("Processor not found in response()");
-		$self->{err} = "processor not found";
-		return;
-	}
-	$self->{processor}->response;
-}
-
-sub errstr {
-	return shift->{err} // "success";
 }
 
 1;

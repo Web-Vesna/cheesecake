@@ -14,26 +14,27 @@ my $logger = Logger->new("LoginMethod");
 sub check_args {
 	my ($self, $args) = @_;
 
+	my $err = "";
 	unless ($args && @$args) {
-		$self->{err} = "no arguments";
+		$err = "no arguments";
 	} elsif (scalar @$args != 1) {
-		$self->{err} = "too many argumets: 1 expected";
+		$err = "too many argumets: 1 expected";
 	} elsif (!ref($args->[0]) || ref($args->[0]) ne 'HASH') {
-		$self->{err} = "invalid argument: '" . Dumper($args->[0]) . "'. Object is expected";
+		$err = "invalid argument: '" . Dumper($args->[0]) . "'. Object is expected";
 	} elsif (!$args->[0]{login} || !$args->[0]{password}) {
-		$self->{err} = "invalid argument: '" . Dumper($args->[0]) . "'. login and password is expected";
+		$err = "invalid argument: '" . Dumper($args->[0]) . "'. login and password is expected";
 	} else {
 		$logger->trace("Validation complete successfully");
 		$self->{credentials} = $args->[0];
 		return 1;
 	}
 
-	$logger->info("Validation failed: $self->{err}");
+	$logger->info("Validation failed: $err");
 
-	return 0;
+	return $self->packet_invalid($err);
 }
 
-sub process_impl {
+sub process {
 	my $self = shift;
 
 	my $login = $self->{credentials}{$self->dbi->extra_col('login')};
@@ -42,18 +43,17 @@ sub process_impl {
 		my ($response, $err) = @_;
 		if ($err) {
 			$logger->info("login failed for '$login': '$err'");
-			$self->{err} = "internal error: $err";
+			return $self->packet_invalid("internal error: $err");
 		} else {
 			$logger->trace("login request successfull: '$login'");
 			if ($response && @$response == 1) {
 				$self->create_session($response->[0], sub {
-					$self->send(shift);
+					$self->packet_valid(shift);
 				});
-				return;
+			} else {
+				return $self->packet_invalid("invalid login or password");
 			}
-			$self->{err} = "invalid login or password";
 		}
-		$self->send;
 	});
 }
 

@@ -13,12 +13,13 @@ my $logger = Logger->new("LogoutMethod");
 sub check_args {
 	my ($self, $args) = @_;
 
+	my $err = "";
 	unless ($args && @$args) {
-		$self->{err} = "no arguments";
+		$err = "no arguments";
 	} elsif (scalar @$args < 1 || scalar @$args > 2) {
-		$self->{err} = "invalid arguments count: 1 or 2 expected";
+		$err = "invalid arguments count: 1 or 2 expected";
 	} elsif (ref $args->[0]) {
-		$self->{err} = "invalid argument: '" . Dumper($args->[0]) . "'. String is expected";
+		$err = "invalid argument: '" . Dumper($args->[0]) . "'. String is expected";
 	} else {
 		$logger->trace("Validation complete successfully");
 		$self->{session_id} = $args->[0];
@@ -26,12 +27,11 @@ sub check_args {
 		return 1;
 	}
 
-	$logger->info("Validation failed: $self->{err}");
-
-	return 0;
+	$logger->info("Validation failed: $err");
+	return $self->packet_invalid($err);
 }
 
-sub process_impl {
+sub process {
 	my $self = shift;
 
 	$logger->trace("Trying to logout '$self->{session_id}' (force = " . $self->{close_all_sessions} . ")");
@@ -41,22 +41,20 @@ sub process_impl {
 			my $value = shift;
 			unless ($value) {
 				$logger->info("Got empty response in close_all_sessions request");
-				$self->send;
-				return;
+				return $self->packet_valid;
 			}
 
 			$logger->trace("Got uid for sid '$self->{session_id}': '$value->{uid}'");
 
 			my $uid = $value->{uid};
 			unless (defined $uid) {
-				$self->send;
-				return;
+				return $self->packet_valid;
 			}
 
-			$self->memc->delete_by_uid($uid, sub { $self->send });
+			$self->memc->delete_by_uid($uid, sub { $self->packet_valid });
 		});
 	} else {
-		$self->memc->delete_by_sid($self->{session_id}, sub { $self->send });
+		$self->memc->delete_by_sid($self->{session_id}, sub { $self->packet_valid });
 	}
 }
 

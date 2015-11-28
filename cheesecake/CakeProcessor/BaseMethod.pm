@@ -26,57 +26,23 @@ sub new {
 
 	return $self
 		unless defined $response;
-	return $self->packet_invalid
-		unless $response;
-	return $self->packet_valid;
-}
 
-sub errstr {
-	return shift->{err};
-}
+	$self->process
+		if $response;
 
-sub valid {
-	return not defined shift->{err};
-}
-
-sub args {
-	return shift->{args};
+	return $self;
 }
 
 sub packet_valid {
 	my $self = shift;
-	$self->{on_valid}->($self);
-	return $self;
+	$self->{on_valid}->(@_);
+	return 1;
 }
 
 sub packet_invalid {
-	my $self = shift;
-	$self->{on_invalid}->($self, $self->errstr);
-	return $self;
-}
-
-sub send {
-	my ($self, @response) = @_;
-	if ($self->{err}) {
-		$self->{on_err}->($self->{err});
-	} else {
-		$self->{response} = \@response;
-		$self->{on_succ}->();
-	}
-}
-
-sub process {
-	my ($self, $on_succ, $on_err) = @_;
-
-	$self->{on_succ} = $on_succ;
-	$self->{on_err} = $on_err;
-	$self->process_impl; # should be implemented in derived
-}
-
-sub response {
-	my $self = shift;
-
-	return @{$self->{response}};
+	my ($self, $err) = @_;
+	$self->{on_invalid}->($err);
+	return 0;
 }
 
 sub memc {

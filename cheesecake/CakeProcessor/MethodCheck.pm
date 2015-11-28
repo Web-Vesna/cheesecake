@@ -13,24 +13,24 @@ my $logger = Logger->new("CheckMethod");
 sub check_args {
 	my ($self, $args) = @_;
 
+	my $err = "";
 	unless ($args && @$args) {
-		$self->{err} = "no arguments";
+		$err = "no arguments";
 	} elsif (scalar @$args != 1) {
-		$self->{err} = "too many argumets: 1 expected";
+		$err = "too many argumets: 1 expected";
 	} elsif (ref $args->[0]) {
-		$self->{err} = "invalid argument: '" . Dumper($args->[0]) . "'. String is expected";
+		$err = "invalid argument: '" . Dumper($args->[0]) . "'. String is expected";
 	} else {
 		$logger->trace("Validation complete successfully");
 		$self->{session_id} = $args->[0];
 		return 1;
 	}
 
-	$logger->info("Validation failed: $self->{err}");
-
-	return 0;
+	$logger->info("Validation failed: $err");
+	return $self->packet_invalid($err);
 }
 
-sub process_impl {
+sub process {
 	my $self = shift;
 
 	$logger->trace("Processing started");
@@ -38,10 +38,10 @@ sub process_impl {
 		my $value = shift;
 
 		$logger->trace("Response from memc: '" . ($value // 'undef') . "'");
-		$self->{err} = "not exists"
+		return $self->packet_invalid("not exists")
 			unless $value;
 
-		$self->send;
+		$self->packet_valid;
 	});
 }
 
