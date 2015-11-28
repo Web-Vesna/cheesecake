@@ -3,7 +3,7 @@ package CakeProcessor::MethodRegister;
 use strict;
 use warnings;
 
-use base qw( CakeProcessor::LoginMethod );
+use base qw( CakeProcessor::MethodLogin );
 
 use Mail::RFC822::Address;
 
@@ -23,9 +23,9 @@ sub check_args {
 	} elsif ((my $err, $real_args) = $self->validate_schema($args->[0])) {
 		$self->{err} = "invalid schema: '" . Dumper($args->[0]) . "'. $err.";
 	} else {
-		$logger->trace("Validation complete successfully");
-		$self->{user_info} = $real_args;
-		return 1;
+		$logger->trace("Validation complete successfully. Check extra conditions");
+		$self->check_extra_conditions($real_args);
+		return undef;
 	}
 
 	$logger->info("Validation failed: $self->{err}");
@@ -69,6 +69,40 @@ sub validate_schema {
 	return (undef, \%real_args);
 }
 
+sub check_extra_conditions {
+	my ($self, $data) = @_;
+
+	# Extra conditions:
+	#	* user with given unique fields is found (one by one)
+
+	my $schema = $self->dbi->schema;
+	my $reqs_sent = 0;
+	my $failed = 0;
+
+	for (@$schema) {
+		# all required fields are already processed
+		# => if fiels should be unique but not present means col is not required
+		if ($_->{unique} && defined $data->{$_->{name}}) {
+			++$reqs_sent;
+			$self->dbi->check_unique($_->{name}, $data->{$_->{name}}, sub {
+				return if $failed;
+
+				my $err = shift;
+				if ($err) {
+					$failed = 1;
+					$self->{err} = $err;
+					return $self->packet_invalid;
+				}
+
+				unless (--$reqs_sent) {
+					$self->{user_info} = $data;
+					$self->packet_valid;
+				}
+			});
+		}
+	}
+}
+
 sub process_impl {
 	my $self = shift;
 
@@ -92,7 +126,7 @@ sub process_impl {
 			}
 
 			$self->create_session($response, sub {
-				return $self->send(shift, $uinfo); # session id && user info
+				return $self->send(shift, $response); # session id && user info
 			});
 		});
 	});

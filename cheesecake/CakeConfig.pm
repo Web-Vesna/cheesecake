@@ -73,7 +73,14 @@ our @EXPORT = @EXPORT_OK;
 			if ($_->{col_type}) {
 				$logger->warn("Column of type $_->{col_type} should be required. Forse set this attr")
 					unless $_->{required};
+
 				$_->{required} = 1;
+				if ($_->{col_type} eq 'login') {
+					$logger->warn("Column of type $_->{col_type} should be unique. Forse set this attr")
+						unless $_->{unique};
+					$_->{unique} = 1;
+				}
+
 				delete $required_types{$_->{col_type}};
 			}
 
@@ -82,6 +89,7 @@ our @EXPORT = @EXPORT_OK;
 				type => $_->{type},
 				col_type => $_->{col_type},
 				required => ($_->{required} ? 1 : 0),
+				unique => ($_->{unique} ? 1 : 0),
 			};
 		}
 

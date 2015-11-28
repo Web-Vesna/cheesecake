@@ -16,18 +16,19 @@ sub new {
 	$logger->trace("$class method invoked with args " . Dumper $processor_args);
 
 	my $self = bless {
-		memc => $args{memc},
-		dbi => $args{dbi},
+		memc		=> $args{memc},
+		dbi		=> $args{dbi},
+		on_valid	=> $args{on_valid},	# will be called if a packet is valid
+		on_invalid	=> $args{on_invalid},	# will be called if a packet is invalid
 	}, $class;
 
-	unless ($self->check_args($processor_args)) { # method should be implemented in derived
-		if ($self->valid) {
-			# if we forget to set 'err' in derived
-			$self->{err} = "args processing failed";
-		}
-	}
+	my $response = $self->check_args($processor_args); # 0 -- args are invalid, 1 -- arge are valid, undef => args are in process
 
-	return $self;
+	return $self
+		unless defined $response;
+	return $self->packet_invalid
+		unless $response;
+	return $self->packet_valid;
 }
 
 sub errstr {
@@ -40,6 +41,18 @@ sub valid {
 
 sub args {
 	return shift->{args};
+}
+
+sub packet_valid {
+	my $self = shift;
+	$self->{on_valid}->($self);
+	return $self;
+}
+
+sub packet_invalid {
+	my $self = shift;
+	$self->{on_invalid}->($self, $self->errstr);
+	return $self;
 }
 
 sub send {

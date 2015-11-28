@@ -74,6 +74,15 @@ sub establish_connection {
 
 	my @cols_list = map { $_->{name} } grep { !$_->{col_type} || $_->{col_type} ne 'userid' } @{ $schema->{columns} };
 
+	my $extra_request = sub {
+		my $col = shift;
+		# don't know why, but can't inline =(
+		return "select_by_unique__$col->{name}" => {
+			r => "select $col->{name} from $schema->{table_name} where $col->{name} = ?",
+			p => [ $col->{name} ],
+		}
+	};
+
 	$connections{$service_name} = {
 		dbh => $dbh,
 		queue => [],
@@ -101,6 +110,8 @@ sub establish_connection {
 				r => "update $schema->{table_name} set " . join(', ', map { "$_ = ?" } @cols_list) . " where $table_prefs{uid_col} = ?",
 				p => [ @cols_list, $table_prefs{uid_col} ],
 			},
+			# a couple extra requests
+			map { $extra_request->($_) } grep { $_->{unique} } @{ $schema->{columns} },
 		},
 	};
 }
@@ -211,6 +222,25 @@ sub select {
 	}
 
 	$self->queue_up($request_name, $callback, $col_name => $val);
+}
+
+sub check_unique {
+	# $callback->($err); $err is undefined unless row exists
+	my ($self, $colname, $value, $cb) = @_;
+
+	$self->queue_up("select_by_unique__$colname", sub {
+		my ($response, $err) = @_;
+		return $cb->($err)
+			if $err;
+
+		return $cb->()
+			unless $response;
+
+		return $cb->("user with $colname '$response->{$colname}' is already exists")
+			if $response->{$colname};
+
+		return $cb->();
+	}, $colname => $value);
 }
 
 sub check_pass {

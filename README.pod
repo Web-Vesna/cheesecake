@@ -182,6 +182,14 @@ If the column have a I<type> and not required, that means, that this column will
 
 If the column is not required, this column will be inserted as NULL if not presented in request.
 
+=item I<unique>
+
+Specifies a unique status of the column.
+
+Unique fields will be processed on register method.
+
+A column of type I<login> is unique by default. I<userid> column will be ignored in the register process.
+
 =back
 
 {
@@ -208,6 +216,8 @@ If the column is not required, this column will be inserted as NULL if not prese
 
 			type : "str",
 
+			unique: true,
+
 		}, {
 
 			name : "password",
@@ -228,11 +238,13 @@ If the column is not required, this column will be inserted as NULL if not prese
 
 		}, {
 
-			name : "lastname"
+			name : "email"
 
 			required : false,
 
 			type : "str",
+
+			unique : true,
 
 		}, {
 
