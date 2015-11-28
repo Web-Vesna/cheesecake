@@ -89,4 +89,5 @@ WriteMakefile(
 		SUFFIX			=> 'gz',
 	},
 	PREREQ_PM	=> { @deps },
+	TESTS		=> 't/*.t',
 );
