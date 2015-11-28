@@ -153,6 +153,14 @@ Following service-specific options are supported. All options are required unles
 
         If the column is not required, this column will be inserted as NULL if not presented in request.
 
+    - _unique_
+
+        Specifies a unique status of the column.
+
+        Unique fields will be processed on register method.
+
+        A column of type _login_ is unique by default. _userid_ column will be ignored in the register process.
+
     {
 
             table_name : "users",
@@ -177,6 +185,8 @@ Following service-specific options are supported. All options are required unles
 
                             type : "str",
 
+                            unique: true,
+
                     }, {
 
                             name : "password",
@@ -197,11 +207,13 @@ Following service-specific options are supported. All options are required unles
 
                     }, {
 
-                            name : "lastname"
+                            name : "email"
 
                             required : false,
 
                             type : "str",
+
+                            unique : true,
 
                     }, {
 
