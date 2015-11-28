@@ -36,14 +36,15 @@ sub check_args {
 sub process_impl {
 	my $self = shift;
 
-	$logger->trace("Trying to login: '$self->{credentials}{login}'");
+	my $login = $self->{credentials}{$self->dbi->extra_col('login')};
+	$logger->trace("Trying to login: '$login'");
 	$self->dbi->check_pass(@{$self->{credentials}}{qw( login password )}, sub {
 		my ($response, $err) = @_;
 		if ($err) {
-			$logger->info("login failed for '$self->{credentials}{login}': '$err'");
+			$logger->info("login failed for '$login': '$err'");
 			$self->{err} = "internal error: $err";
 		} else {
-			$logger->trace("login request successfull: '$self->{credentials}{login}'");
+			$logger->trace("login request successfull: '$login'");
 			if ($response && @$response == 1) {
 				$self->create_session($response->[0], sub {
 					$self->send(shift);

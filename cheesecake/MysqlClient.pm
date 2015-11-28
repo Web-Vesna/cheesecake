@@ -34,6 +34,15 @@ sub logger {
 	return shift->{logger};
 }
 
+sub schema {
+	return shift->{conn}{cols_list};
+}
+
+sub extra_col {
+	my ($self, $ecol_name) = @_;
+	return $self->{conn}{extra_cols}{$ecol_name};
+}
+
 sub establish_connection {
 	my ($self, $service_name) = @_;
 
@@ -255,8 +264,16 @@ sub insert_replace {
 }
 
 sub insert {
-	# $callback->($error)
-	insert_replace('insert', @_);
+	# $callback->($last_insert_id, $error)
+	my ($self, @args) = @_;
+	my $cb = pop @args;
+
+	$self->insert_replace('insert', @args, sub {
+		my $err = shift;
+		return $cb->(undef, $err) if $err;
+
+		return $cb->($self->{conn}{dbh}{mysql_insertid});
+	});
 }
 
 sub replace {

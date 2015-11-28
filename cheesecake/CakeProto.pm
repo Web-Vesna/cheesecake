@@ -101,7 +101,7 @@ our @EXPORT = qw(
 			}
 
 			$logger->err("Invalid packet came from '$self->{credentials}': " . $packet->errstr() . ". Close connection");
-			$self->{cb_close}($hndl, $packet->response);
+			return $sub->($hndl, $packet);
 		};
 	}
 

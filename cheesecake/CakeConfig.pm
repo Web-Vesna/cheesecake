@@ -46,7 +46,8 @@ our @EXPORT = @EXPORT_OK;
 			unless ref $decoded->{columns} && ref $decoded->{columns} eq 'ARRAY';
 
 		my %required_types = map { $_ => 1 } qw( userid login pass );
-		my %_required_types = map { $_ => 1 } qw( userid login pass );
+		my %_required_types = %required_types;
+
 		my %types = map { $_ => 1 } qw( int str email );
 		my @columns;
 
@@ -69,8 +70,12 @@ our @EXPORT = @EXPORT_OK;
 			return "unknown required value for $_->{name}: '$_->{required}': bool is expected"
 				if defined $_->{required} && (!ref $_->{required} || ref $_->{required} ne 'JSON::PP::Boolean');
 
-			delete $required_types{$_->{col_type}}
-				if $_->{col_type};
+			if ($_->{col_type}) {
+				$logger->warn("Column of type $_->{col_type} should be required. Forse set this attr")
+					unless $_->{required};
+				$_->{required} = 1;
+				delete $required_types{$_->{col_type}};
+			}
 
 			push @columns, {
 				name => $_->{name},
