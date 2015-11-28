@@ -16,3 +16,5 @@ cheesecake/MainLoop.pm
 cheesecake/MemcClient.pm
 cheesecake/MysqlClient.pm
 cheesecake/main.pl
+client/CakeClient.pm
+t/TestBase.pm
