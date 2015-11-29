@@ -9,7 +9,7 @@ use AnyEvent;
 use Cwd qw( abs_path );
 
 # hack to find CheeseCake modules in blib dir. FIXME.
-push @INC, map { "$_/CheeseCake" } @INC[0,1];
+push @INC, map { "$_/CheeseCake", "$_/CheeseClient" } @INC[0,1];
 
 my %test = (
 	valid		=> { ok => 1, data => [qw( test 3 )] },

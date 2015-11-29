@@ -95,3 +95,17 @@ WriteMakefile(
 		'Cwd'			=> '0',
 	},
 );
+
+WriteMakefile(
+	NAME		=> 'CheeseClient',
+	VERSION		=> '0.1',
+	AUTHOR		=> 'Pavel Berezhnoy <pberejnoy2005@gmail.com>',
+	LICENSE		=> 'GPL',
+	dist		=> {
+		COMPRESS		=> 'gzip -9f',
+		SUFFIX			=> 'gz',
+	},
+	PREREQ_PM	=> {
+		'CheeseCake'		=> '0',
+	},
+);
