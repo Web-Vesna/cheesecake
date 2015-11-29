@@ -14,107 +14,105 @@ our @EXPORT = qw(
 	encode_mode
 );
 
-{
-	my $use_json = 0;
-	sub use_json {
-		$use_json = shift;
-	}
+my $use_json = 0;
+sub use_json {
+	$use_json = shift;
+}
 
-	my $logger = Logger->new("Proto");
-	my %encode_modes = (
-		json => 'JSON::XS',
-		cbor => 'CBOR::XS',
+my $logger = Logger->new("Proto");
+my %encode_modes = (
+	json => 'JSON::XS',
+	cbor => 'CBOR::XS',
+);
+
+sub new {
+	my $class = shift;
+	my %args = (
+		cb_close => undef,
+		credentials => "unknown",
+		auth_client => undef,
+		@_,
 	);
 
-	sub new {
-		my $class = shift;
-		my %args = (
-			cb_close => undef,
-			credentials => "unknown",
-			auth_client => undef,
-			@_,
+	$args{id} = int(rand 100000);
+	$logger->trace("Creatigng proto $args{id}");
+
+	return bless \%args, $class;
+}
+
+sub DESTROY {
+	my $self = shift;
+	$logger->trace("Destroying proto $self->{id}");
+}
+
+sub _encode_mode {
+	return $use_json ? "json" : "cbor";
+}
+
+sub _encode_module {
+	my $no_new = shift;
+	my $pack = $encode_modes{_encode_mode()};
+
+	return $pack
+		if $no_new;
+	return $pack->new;
+}
+
+sub encode_mode {
+	my ($type, $mod) = (_encode_mode, _encode_module(1));
+	$logger->debug("Using $mod module (use $type mode)");
+	return $type, $mod->new;
+}
+
+sub _encode {
+	return _encode_module->encode(shift);
+}
+
+sub on_read_event {
+	my ($self, $type, $sub) = @_;
+	if (ref $type && ref $type eq 'CODE') {
+		$sub = $type;
+		$type = undef;
+	}
+
+	my $pack_type = "CakeProto::CommonPacket";
+	if ($type && $type eq 'auth') {
+		$pack_type = "CakeProto::AuthPacket";
+	} elsif (defined $type) {
+		$logger->err("Unexpected packet type came: '$type'");
+		die "Unexpected packet type from '$self->{credentials}': '$type'\n";
+	}
+
+	$logger->trace("Packet type is $pack_type");
+
+	return _encode_mode, sub {
+		my ($hndl, $data) = @_;
+
+		$logger->trace("Packet came into on_read");
+
+		$pack_type->new(
+			$data,
+			auth_client => $self->{auth_client},
+			on_success => sub {
+				my ($response, $auth_cli) = @_;
+				$sub->($hndl, _encode($response), $auth_cli);
+			},
+			on_error => sub {
+				my ($response, $err) = @_;
+				$logger->err("Invalid packet came from '$self->{credentials}': $err");
+				$sub->($hndl, _encode($response));
+			},
 		);
+	};
+}
 
-		$args{id} = int(rand 100000);
-		$logger->trace("Creatigng proto $args{id}");
+sub bad_packet {
+	my ($self, $hndl) = @_;
 
-		return bless \%args, $class;
-	}
+	$logger->err("Invalid packet came from '$self->{credentials}'");
 
-	sub DESTROY {
-		my $self = shift;
-		$logger->trace("Destroying proto $self->{id}");
-	}
-
-	sub _encode_mode {
-		return $use_json ? "json" : "cbor";
-	}
-
-	sub _encode_module {
-		my $no_new = shift;
-		my $pack = $encode_modes{_encode_mode()};
-
-		return $pack
-			if $no_new;
-		return $pack->new;
-	}
-
-	sub encode_mode {
-		my ($type, $mod) = (_encode_mode, _encode_module(1));
-		$logger->debug("Using $mod module (use $type mode)");
-		return $type, $mod->new;
-	}
-
-	sub _encode {
-		return _encode_module->encode(shift);
-	}
-
-	sub on_read_event {
-		my ($self, $type, $sub) = @_;
-		if (ref $type && ref $type eq 'CODE') {
-			$sub = $type;
-			$type = undef;
-		}
-
-		my $pack_type = "CakeProto::CommonPacket";
-		if ($type && $type eq 'auth') {
-			$pack_type = "CakeProto::AuthPacket";
-		} elsif (defined $type) {
-			$logger->err("Unexpected packet type came: '$type'");
-			die "Unexpected packet type from '$self->{credentials}': '$type'\n";
-		}
-
-		$logger->trace("Packet type is $pack_type");
-
-		return _encode_mode, sub {
-			my ($hndl, $data) = @_;
-
-			$logger->trace("Packet came into on_read");
-
-			$pack_type->new(
-				$data,
-				auth_client => $self->{auth_client},
-				on_success => sub {
-					my ($response, $auth_cli) = @_;
-					$sub->($hndl, _encode($response), $auth_cli);
-				},
-				on_error => sub {
-					my ($response, $err) = @_;
-					$logger->err("Invalid packet came from '$self->{credentials}': $err");
-					$sub->($hndl, _encode($response));
-				},
-			);
-		};
-	}
-
-	sub bad_packet {
-		my ($self, $hndl) = @_;
-
-		$logger->err("Invalid packet came from '$self->{credentials}'");
-
-		my $packet = CakeProto::BadPacket->new;
-		$self->{cb_close}($hndl, _encode($packet->response(error => 'bad packet')));
-	}
+	my $packet = CakeProto::BadPacket->new;
+	$self->{cb_close}($hndl, _encode($packet->response(error => 'bad packet')));
 }
 
 1;
