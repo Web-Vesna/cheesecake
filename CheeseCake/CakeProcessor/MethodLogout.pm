@@ -7,9 +7,6 @@ use base qw( CakeProcessor::BaseMethod );
 
 use Data::Dumper::OneLine;
 
-require Logger;
-my $logger = Logger->new("LogoutMethod");
-
 sub check_args {
 	my ($self, $args) = @_;
 
@@ -21,30 +18,30 @@ sub check_args {
 	} elsif (ref $args->[0]) {
 		$err = "invalid argument: '" . Dumper($args->[0]) . "'. String is expected";
 	} else {
-		$logger->trace("Validation complete successfully");
+		$self->logger->trace("Validation complete successfully");
 		$self->{session_id} = $args->[0];
 		$self->{close_all_sessions} = $args->[1] // 0;
 		return 1;
 	}
 
-	$logger->info("Validation failed: $err");
+	$self->logger->info("Validation failed: $err");
 	return $self->packet_invalid($err);
 }
 
 sub process {
 	my $self = shift;
 
-	$logger->trace("Trying to logout '$self->{session_id}' (force = " . $self->{close_all_sessions} . ")");
+	$self->logger->trace("Trying to logout '$self->{session_id}' (force = " . $self->{close_all_sessions} . ")");
 	if ($self->{close_all_sessions}) {
 		$logger->trace("Trying to force logout of user with sid $self->{session_id}");
 		$self->memc->get($self->{session_id}, sub {
 			my $value = shift;
 			unless ($value) {
-				$logger->info("Got empty response in close_all_sessions request");
+				$self->logger->info("Got empty response in close_all_sessions request");
 				return $self->packet_valid;
 			}
 
-			$logger->trace("Got uid for sid '$self->{session_id}': '$value->{uid}'");
+			$self->logger->trace("Got uid for sid '$self->{session_id}': '$value->{uid}'");
 
 			my $uid = $value->{uid};
 			unless (defined $uid) {

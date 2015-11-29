@@ -7,13 +7,10 @@ use base qw( CakeProcessor::MethodCheck );
 
 use Data::Dumper::OneLine;
 
-require Logger;
-my $logger = Logger->new("AboutMethod");
-
 sub process {
 	my $self = shift;
 
-	$logger->trace("Processing started");
+	$self->logger->trace("Processing started");
 	$self->memc->get($self->{session_id}, sub {
 		my $value = shift;
 

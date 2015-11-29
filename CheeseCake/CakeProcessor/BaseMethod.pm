@@ -8,19 +8,21 @@ use base qw( Exporter );
 use Data::Dumper::OneLine;
 
 require Logger;
-my $logger = Logger->new("BaseMethod");
 
 sub new {
 	my ($class, $processor_args, %args) = @_;
 
-	$logger->trace("$class method invoked with args " . Dumper $processor_args);
-
 	my $self = bless {
 		memc		=> $args{memc},
 		dbi		=> $args{dbi},
+		auth_client	=> $args{auth_client},
+		packet_id	=> $args{packet_id},
+		class_name	=> $class,
 		on_valid	=> $args{on_valid},	# will be called if a packet is valid
 		on_invalid	=> $args{on_invalid},	# will be called if a packet is invalid
 	}, $class;
+
+	$self->logger->trace("$class method invoked with args " . Dumper $processor_args);
 
 	my $response = $self->check_args($processor_args); # 0 -- args are invalid, 1 -- arge are valid, undef => args are in process
 
@@ -51,6 +53,16 @@ sub memc {
 
 sub dbi {
 	return shift->{dbi};
+}
+
+sub logger {
+	my $self = shift;
+
+	unless ($self->{logger}) {
+		$self->{logger} =  Logger->new(@$self{qw( class_name auth_client packet_id )});
+	}
+
+	return $self->{logger};
 }
 
 1;

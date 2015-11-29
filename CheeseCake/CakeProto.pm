@@ -11,7 +11,6 @@ use CBOR::XS;
 
 our @EXPORT = qw(
 	use_json
-	encode_mode
 );
 
 my $use_json = 0;
@@ -19,7 +18,6 @@ sub use_json {
 	$use_json = shift;
 }
 
-my $logger = Logger->new("Proto");
 my %encode_modes = (
 	json => 'JSON::XS',
 	cbor => 'CBOR::XS',
@@ -34,15 +32,21 @@ sub new {
 		@_,
 	);
 
+	$args{logger} = Logger->new("Proto", $args{auth_client});
+
 	$args{id} = int(rand 100000);
-	$logger->trace("Creatigng proto $args{id}");
+	$args{logger}->trace("Creatigng proto $args{id}");
 
 	return bless \%args, $class;
 }
 
+sub logger {
+	return shift->{logger};
+}
+
 sub DESTROY {
 	my $self = shift;
-	$logger->trace("Destroying proto $self->{id}");
+	$self->logger->trace("Destroying proto $self->{id}");
 }
 
 sub _encode_mode {
@@ -56,12 +60,6 @@ sub _encode_module {
 	return $pack
 		if $no_new;
 	return $pack->new;
-}
-
-sub encode_mode {
-	my ($type, $mod) = (_encode_mode, _encode_module(1));
-	$logger->debug("Using $mod module (use $type mode)");
-	return $type, $mod->new;
 }
 
 sub _encode {
@@ -79,16 +77,16 @@ sub on_read_event {
 	if ($type && $type eq 'auth') {
 		$pack_type = "CakeProto::AuthPacket";
 	} elsif (defined $type) {
-		$logger->err("Unexpected packet type came: '$type'");
+		$self->logger->err("Unexpected packet type came: '$type'");
 		die "Unexpected packet type from '$self->{credentials}': '$type'\n";
 	}
 
-	$logger->trace("Packet type is $pack_type");
+	$self->logger->trace("Packet type is $pack_type");
 
 	return _encode_mode, sub {
 		my ($hndl, $data) = @_;
 
-		$logger->trace("Packet came into on_read");
+		$self->logger->trace("Packet came into on_read");
 
 		$pack_type->new(
 			$data,
@@ -99,7 +97,7 @@ sub on_read_event {
 			},
 			on_error => sub {
 				my ($response, $err) = @_;
-				$logger->err("Invalid packet came from '$self->{credentials}': $err");
+				$self->logger->err("Invalid packet came from '$self->{credentials}': $err");
 				$sub->($hndl, _encode($response));
 			},
 		);
@@ -109,7 +107,7 @@ sub on_read_event {
 sub bad_packet {
 	my ($self, $hndl) = @_;
 
-	$logger->err("Invalid packet came from '$self->{credentials}'");
+	$self->logger->err("Invalid packet came from '$self->{credentials}'");
 
 	my $packet = CakeProto::BadPacket->new;
 	$self->{cb_close}($hndl, _encode($packet->response(error => 'bad packet')));
@@ -132,8 +130,10 @@ sub new {
 		auth_client	=> $args{auth_client},
 		on_success	=> $args{on_success},
 		on_error	=> $args{on_error},
-		logger		=> Logger->new($class =~ /::(.*)/),
+		class_name	=> ($class =~ /::(.*)/),
 	}, $class;
+
+	$self->{logger} = Logger->new($self->{class_name}, $self->{auth_client}),
 
 	$self->parse_packet($packet);
 	return $self;
@@ -167,6 +167,7 @@ sub parse_packet {
 		unless ref $packet && ref $packet eq 'ARRAY';
 
 	$self->{packet_id} = shift @$packet;
+	$self->{logger} = Logger->new($self->{class_name}, $self->{auth_client}, $self->{packet_id});
 	$self->_parse_packet_impl($packet);
 }
 
@@ -220,8 +221,10 @@ sub _parse_packet_impl {
 		unless $self->{auth_client};
 
 	CakeProcessor::process_function($func_name, $packet,
-		memc		=> MemcClient->new($self->{auth_client}),
-		dbi		=> MysqlClient->new($self->{auth_client}),
+		memc		=> MemcClient->new($self->{auth_client}, $self->{packet_id}),
+		dbi		=> MysqlClient->new($self->{auth_client}, $self->{packet_id}),
+		auth_client	=> $self->{auth_client},
+		packet_id	=> $self->{packet_id},
 		on_valid	=> sub {
 			$self->packet_valid(\@_);
 		},

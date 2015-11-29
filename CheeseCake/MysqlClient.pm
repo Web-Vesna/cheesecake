@@ -15,10 +15,10 @@ use DBI;
 my %connections;
 
 sub new {
-	my ($class, $service_name) = @_;
+	my ($class, $service_name, $packet_id) = @_;
 
 	my $self = bless {
-		logger => Logger->new("MysqlClient ($service_name)"),
+		logger => Logger->new("MysqlClient", $service_name, $packet_id),
 	}, $class;
 
 	unless ($connections{$service_name}) {

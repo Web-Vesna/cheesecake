@@ -7,9 +7,6 @@ use base qw( CakeProcessor::MethodLogin );
 
 use Mail::RFC822::Address;
 
-require Logger;
-my $logger = Logger->new("RegisterMethod");
-
 sub check_args {
 	my ($self, $args) = @_;
 
@@ -24,12 +21,12 @@ sub check_args {
 	} elsif ((my $err, $real_args) = $self->validate_schema($args->[0])) {
 		$err = "invalid schema: '" . Dumper($args->[0]) . "'. $err.";
 	} else {
-		$logger->trace("Validation complete successfully. Check extra conditions");
+		$self->logger->trace("Validation complete successfully. Check extra conditions");
 		$self->check_extra_conditions($real_args);
 		return undef;
 	}
 
-	$logger->info("Validation failed: $err");
+	$self->logger->info("Validation failed: $err");
 	return $self->packet_invalid($err);
 }
 
@@ -106,7 +103,7 @@ sub process {
 	my $self = shift;
 
 	my $login = $self->{user_info}{$self->dbi->extra_col('login')};
-	$logger->trace("Trying to register: '$login'");
+	$self->logger->trace("Trying to register: '$login'");
 
 	$self->dbi->insert(%{$self->{user_info}}, sub {
 		my ($uid, $err) = @_;

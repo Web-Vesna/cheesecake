@@ -104,7 +104,6 @@ our @EXPORT = qw(
 
 		my $hndl = AnyEvent::Handle->new(
 			fh => $cli,
-			CakeProto::encode_mode(), # not works ?
 
 			on_error => sub {
 				my ($hndl, $fatal, $msg) = @_;

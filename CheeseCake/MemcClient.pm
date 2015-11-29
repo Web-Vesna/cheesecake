@@ -14,7 +14,7 @@ use Logger;
 my %connections;
 
 sub new {
-	my ($class, $service_name) = @_;
+	my ($class, $service_name, $packet_id) = @_;
 
 	our %keys_in_process;
 	our @keys_queue;
@@ -27,7 +27,7 @@ sub new {
 		delete_in_process	=> \%delete_in_process,
 		delete_queue		=> \@delete_queue,
 
-		logger => Logger->new("MemcachedClient ($service_name)"),
+		logger => Logger->new("MemcachedClient", $service_name, $packet_id),
 	}, $class;
 
 	unless ($connections{$service_name}) {

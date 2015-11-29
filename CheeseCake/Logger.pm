@@ -6,6 +6,8 @@ use warnings;
 use Scalar::Util qw( reftype );
 use Devel::StackTrace;
 
+use Time::HiRes;
+
 use base qw( Exporter );
 
 our @EXPORT = qw(
@@ -31,11 +33,20 @@ our @EXPORT_OK = @EXPORT;
 	}
 
 	sub new {
-		my ($class, $prefix) = @_;
+		my ($class, $prefix, $auth_cli, $packet_id) = @_;
 
-		return bless {
+		my $self = bless {
 			prefix => $prefix,
+			msg_info => '',
 		}, $class;
+
+		$self->{msg_info} .= " [cli=$auth_cli]"
+			if $auth_cli;
+
+		$self->{msg_info} .= " [id=$packet_id]"
+			if defined $packet_id;
+
+		return $self;
 	}
 
 	sub real_warn {
@@ -46,7 +57,8 @@ our @EXPORT_OK = @EXPORT;
 			$self->err("Uninitialized message came from " . Devel::StackTrace->new->as_string);
 			return;
 		}
-		warn sprintf "%s [$type] [$prefix] $msg\n", scalar localtime;
+
+		warn sprintf "%s [$type] [$prefix]$self->{msg_info} $msg\n", scalar localtime;
 	}
 
 	sub prepare {

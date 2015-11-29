@@ -8,9 +8,6 @@ use base qw( CakeProcessor::BaseMethod );
 use Data::Dumper::OneLine;
 use Digest::MD5 qw( md5_hex );
 
-require Logger;
-my $logger = Logger->new("LoginMethod");
-
 sub check_args {
 	my ($self, $args) = @_;
 
@@ -24,12 +21,12 @@ sub check_args {
 	} elsif (!$args->[0]{login} || !$args->[0]{password}) {
 		$err = "invalid argument: '" . Dumper($args->[0]) . "'. login and password is expected";
 	} else {
-		$logger->trace("Validation complete successfully");
+		$self->logger->trace("Validation complete successfully");
 		$self->{credentials} = $args->[0];
 		return 1;
 	}
 
-	$logger->info("Validation failed: $err");
+	$self->logger->info("Validation failed: $err");
 
 	return $self->packet_invalid($err);
 }
@@ -38,14 +35,14 @@ sub process {
 	my $self = shift;
 
 	my $login = $self->{credentials}{$self->dbi->extra_col('login')};
-	$logger->trace("Trying to login: '$login'");
+	$self->logger->trace("Trying to login: '$login'");
 	$self->dbi->check_pass(@{$self->{credentials}}{qw( login password )}, sub {
 		my ($response, $err) = @_;
 		if ($err) {
-			$logger->info("login failed for '$login': '$err'");
+			$self->logger->info("login failed for '$login': '$err'");
 			return $self->packet_invalid("internal error: $err");
 		} else {
-			$logger->trace("login request successfull: '$login'");
+			$self->logger->trace("login request successfull: '$login'");
 			if ($response && @$response == 1) {
 				$self->create_session($response->[0], sub {
 					$self->packet_valid(shift);

@@ -8,12 +8,10 @@ our @EXPORT = qw( process_function );
 
 require Logger;
 
-my $logger = Logger->new("CakeProcessor");
-
 sub process_function {
 	my ($func_name, $f_args, %args) = @_;
 
-	my $method = _load_method($func_name);
+	my $method = _load_method($func_name, \%args);
 	unless ($method) {
 		$args{on_invalid}->("unknown function was called: $func_name");
 	} else {
@@ -30,9 +28,11 @@ sub process_function {
 
 sub _load_method {
 	my $func_name = shift;
+	my $args = shift;
 
 	our %loaded = ();
 
+	my $logger = Logger->new("CakeProcessor", $args->{auth_client}, $args->{packet_id});
 	unless (exists $loaded{$func_name}) {
 		my $package_name = "CakeProcessor::Method" . ucfirst($func_name);
 		$logger->debug("Trying to load $package_name");
