@@ -74,6 +74,7 @@ our @EXPORT = qw(
 		}
 
 		$logger->trace("Preparing read_packet event for $packet_type packet");
+		my $__auth_cli = $client;
 		return create_proto($host, $port, $client // $auth_client)->on_read_event(($is_auth ? 'auth' : undef) => sub {
 			my ($hndl, $response, $auth_cli) = @_;
 			$logger->debug("$packet_type packet came from $host, $port");
@@ -84,6 +85,7 @@ our @EXPORT = qw(
 					$logger->err("Auth client is not defined in auth response! Close connection");
 					$need_close = 1;
 				} else {
+					$__auth_cli = $auth_cli;
 					$logger->info("Setting auth client as $auth_cli");
 				}
 			}
@@ -92,7 +94,7 @@ our @EXPORT = qw(
 			if ($need_close) {
 				$hndl->push_shutdown;
 			} else {
-				$hndl->push_read(on_packet_read($host, $port, $auth_cli));
+				$hndl->push_read(on_packet_read($host, $port, $__auth_cli));
 			}
 		});
 	}
@@ -108,7 +110,12 @@ our @EXPORT = qw(
 				my ($hndl, $fatal, $msg) = @_;
 
 				$logger->err("Error happens in $host:$port: $msg. Close connection.");
-				create_proto($host, $port)->bad_packet($hndl); # will destroy connection
+
+				if ($fatal) {
+					$hndl->destroy;
+				} else {
+					create_proto($host, $port)->bad_packet($hndl); # will destroy connection
+				}
 			},
 
 			on_eof => sub {

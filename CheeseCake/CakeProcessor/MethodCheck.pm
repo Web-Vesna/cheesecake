@@ -37,7 +37,7 @@ sub process {
 	$self->memc->get($self->{session_id}, sub {
 		my $value = shift;
 
-		$logger->trace("Response from memc: '" . ($value // 'undef') . "'");
+		$logger->trace("Response from memc: '" . (Dumper $value) . "'");
 		return $self->packet_invalid("not exists")
 			unless $value;
 

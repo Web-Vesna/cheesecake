@@ -16,12 +16,16 @@ my %connections;
 sub new {
 	my ($class, $service_name) = @_;
 
-	my $self = bless {
-		keys_in_process => {},
-		keys_queue => [],
+	our %keys_in_process;
+	our @keys_queue;
+	our %delete_in_process;
+	our @delete_queue;
 
-		delete_in_process => {},
-		delete_queue => [],
+	my $self = bless {
+		keys_in_process		=> \%keys_in_process,
+		keys_queue		=> \@keys_queue,
+		delete_in_process	=> \%delete_in_process,
+		delete_queue		=> \@delete_queue,
 
 		logger => Logger->new("MemcachedClient ($service_name)"),
 	}, $class;
@@ -71,7 +75,7 @@ sub get {
 sub _process_queue {
 	my ($self, $set_queue, $delete_queue) = @_;
 
-	$self->logger->warn("Starting to process queued actions");
+	$self->logger->info("Starting to process queued actions");
 
 	# at first we should close old sessions and only then open new
 	for (@$delete_queue) {
@@ -83,6 +87,8 @@ sub _process_queue {
 		$self->logger->info("Processing queued set action for uid $_->[1]");
 		$self->set(@$_);
 	}
+
+	$self->logger->info("Done processing queued actions");
 }
 
 sub set {
@@ -94,10 +100,12 @@ sub set {
 		return;
 	}
 
-	my $in_process = $self->{keys_in_process}; # to remove race-conditions
+	my $in_process = ($self->{keys_in_process} //= {}); # to remove race-conditions
+
+	$self->logger->trace("Setting $sid ($uid) into memc");
 	if ($in_process->{$uid}) {
 		shift;
-		$self->logger->warn("Queuing set action for uid $uid");
+		$self->logger->info("Queuing set action for uid $uid ($sid)");
 		push @{$self->{keys_queue}}, \@_;
 		return;
 	}
@@ -106,6 +114,8 @@ sub set {
 	my $do_process = sub {
 		# should be called just 2 times per uid
 		if (--$in_process->{$uid} == 0) {
+			$cb->(@_);
+
 			my @queue = ($self->{keys_queue}, $self->{delete_queue});
 			$self->{keys_queue} = [];
 			$self->{delete_queue} = [];
@@ -113,14 +123,17 @@ sub set {
 		}
 	};
 
+	$self->logger->trace("Setting $sid ($uid) into sid-memc");
 	$self->{conn}{sid_memc}->set(
 		$sid => $value,
 		expire => $self->{conn}{exptime},
 		cb => sub {
-			$cb->(@_);
-			$do_process->();
+			$self->logger->trace("Done setting $sid into sid-memc");
+			$do_process->(@_);
 		},
 	);
+
+	$self->logger->trace("Setting $sid ($uid) into uid-memc");
 	$self->{conn}{uid_memc}->get($uid, cb => sub {
 		my ($val, $err) = @_;
 
@@ -129,12 +142,17 @@ sub set {
 			$val = undef;
 		}
 
+		$self->logger->trace("Done requesting existed sessions from memc ($sid)");
+
 		$val //= [];
 		push @$val, $sid;
 
 		$self->{conn}{uid_memc}->set(
 			$uid => $val,
-			cb => $do_process,
+			cb => sub {
+				$self->logger->trace("Done setting $sid($uid) into uid-memc");
+				$do_process->(@_);
+			},
 		);
 	});
 }
@@ -166,7 +184,8 @@ sub delete_by_uid {
 		}
 
 		for (@$val) {
-			$self->{conn}{sid_memc}->delete($_, no_reply => 1);
+			$self->logger->info("DELETING $_");
+			$self->{conn}{sid_memc}->delete($_, cb => sub {}, no_reply => 1);
 		}
 
 		$self->{conn}{uid_memc}->delete($uid, cb => $cb // sub {});

@@ -29,12 +29,14 @@ sub send {
 
 	our %requests;
 
-	my $req_id = int rand 99999;
+	my $req_id = int(rand 99999) * int(rand 75) + int(rand 654125);
 	unshift @$data, $req_id;
 	$requests{$req_id} = {
 		req => $data,
 		cb => $cb,
 	};
+
+	warn Dumper "SENDING REQUEST: " . Dumper($data);
 
 	$self->{hndl}->push_write(cbor => $data);
 	$self->{hndl}->push_read(cbor => sub {
@@ -44,7 +46,7 @@ sub send {
 			unless ref($v) && ref($v) eq 'ARRAY';
 
 		my $req_id = shift @$v;
-		my $req = delete $requests{$v}
+		my $req = delete $requests{$req_id}
 			or return $self->{on_error}->("Request with id $req_id not found");
 
 		$req->{cb}->($v)
@@ -105,6 +107,10 @@ sub auth {
 	);
 
 	$self->send([ $args{client}, $args{client_key} ], sub {
+		my $args = shift;
+		return $self->{on_error}->($args->[1] // "auth failed")
+			unless $args->[0];
+
 		$args{cb}->()
 			if $args{cb};
 	});

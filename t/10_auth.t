@@ -8,27 +8,25 @@ use AnyEvent;
 
 use Cwd qw( abs_path );
 
-# hack to find CheeseCake modules in blib dir. FIXME.
-push @INC, map { "$_/CheeseCake", "$_/CheeseClient" } @INC[0,1];
-
 my %test = (
 	valid		=> { ok => 1, data => [qw( test 3 )] },
 	no_client	=> { ok => 0, data => [qw( test123 3 )] },
 	no_key		=> { ok => 0, data => [qw( test 10 )] },
-	no_connect	=> { ok => 0, no_connect => 1, host => '123.123.13.123', port => '1028', },
 );
 
-plan tests => scalar(keys %test) + 4;
+plan tests => scalar(keys %test) + 3;
 
 my $path = abs_path($0);
 $path =~ s#/[^/]*$##;
 
 sub cfg_name { "$path/../config" };
 
+unshift @INC, "$path/../CheeseCake", "$path/../CheeseClient";
+
 require_ok('CakeClient');
 require_ok('CakeConfig');
 
-CakeConfig::read_config(cfg_name);
+CakeConfig::read_config(cfg_name());
 my $cfg = CakeConfig::config();
 
 ok(defined $cfg, "Config read");
@@ -41,11 +39,7 @@ for my $t (keys %test) {
 
 	$cv->begin;
 	my $cli = CakeClient->new(on_error => sub {
-		if ($test{$t}{no_connect}) {
-			ok(1, "$t: connecting to unknown service");
-		} else {
-			ok(!$test{$t}{ok}, "$t: Invalid connect");
-		}
+		ok(!$test{$t}{ok}, "$t: Invalid connect");
 		$cv->end;
 	});
 
@@ -60,7 +54,5 @@ for my $t (keys %test) {
 		});
 	push @__stuff, $cli;
 }
-
-
 
 $cv->recv;

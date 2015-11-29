@@ -40,7 +40,7 @@ sub schema {
 
 sub extra_col {
 	my ($self, $ecol_name) = @_;
-	return $self->{conn}{extra_cols}{$ecol_name};
+	return $self->{conn}{extra_cols}{$ecol_name . "_col"};
 }
 
 sub establish_connection {
