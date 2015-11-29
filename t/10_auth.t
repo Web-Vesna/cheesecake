@@ -6,6 +6,11 @@ use warnings;
 use Test::More;
 use AnyEvent;
 
+use Cwd qw( abs_path );
+
+# hack to find CheeseCake modules in blib dir. FIXME.
+push @INC, map { "$_/CheeseCake" } @INC[0,1];
+
 my %test = (
 	valid		=> { ok => 1, data => [qw( test 3 )] },
 	no_client	=> { ok => 0, data => [qw( test123 3 )] },
@@ -15,11 +20,15 @@ my %test = (
 
 plan tests => scalar(keys %test) + 4;
 
-require_ok('TestBase');
+my $path = abs_path($0);
+$path =~ s#/[^/]*$##;
+
+sub cfg_name { "$path/../config" };
+
 require_ok('CakeClient');
 require_ok('CakeConfig');
 
-CakeConfig::read_config(TestBase::cfg_name());
+CakeConfig::read_config(cfg_name);
 my $cfg = CakeConfig::config();
 
 ok(defined $cfg, "Config read");

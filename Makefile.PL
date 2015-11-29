@@ -89,4 +89,9 @@ WriteMakefile(
 		SUFFIX			=> 'gz',
 	},
 	PREREQ_PM	=> { @deps },
+	BUILD_REQUIRES	=> {
+		'AnyEvent'		=> '0',
+		'Test::More'		=> '0',
+		'Cwd'			=> '0',
+	},
 );
